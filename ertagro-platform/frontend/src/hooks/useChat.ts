@@ -35,8 +35,8 @@ export function useChat() {
       }
 
       setMessages(prev => [...prev, assistantMessage])
-    } catch {
-      setError('Cavab alına bilmədi. Zəhmət olmasa yenidən cəhd edin.')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Cavab alına bilmədi.')
     } finally {
       setLoading(false)
     }

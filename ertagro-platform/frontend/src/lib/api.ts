@@ -33,12 +33,16 @@ export const api = {
     return fetch(`${BASE}/kpi-alerts?${params}`).then((r) => r.json())
   },
 
-  chat: (body: object) =>
-    fetch(`${BASE}/chat`, {
+  chat: async (body: object) => {
+    const r = await fetch(`${BASE}/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
-    }).then((r) => r.json()),
+    })
+    const data = await r.json()
+    if (!r.ok) throw new Error(data.detail || `Server xətası: ${r.status}`)
+    return data
+  },
 
   forecast: (body: object) =>
     fetch(`${BASE}/forecast`, {

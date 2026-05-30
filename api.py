@@ -166,6 +166,34 @@ async def health():
     return {"status": "ok", "initialized": _initialized, "error": _init_error}
 
 
+@app.get("/api/test-connections")
+async def test_connections():
+    results = {}
+    # Test PBI
+    try:
+        ok, msg = _pbi.test_connection()
+        results["powerbi"] = {"ok": ok, "msg": msg}
+    except Exception as e:
+        results["powerbi"] = {"ok": False, "msg": str(e)}
+    # Test LLM
+    try:
+        from openai import AzureOpenAI
+        client = AzureOpenAI(
+            azure_endpoint=_cfg["AZURE_OPENAI_ENDPOINT"],
+            api_key=_cfg["AZURE_OPENAI_API_KEY"],
+            api_version=_cfg.get("AZURE_OPENAI_API_VERSION", "2024-10-21"),
+        )
+        resp = client.chat.completions.create(
+            model=_cfg["AZURE_OPENAI_DEPLOYMENT"],
+            messages=[{"role": "user", "content": "ping"}],
+            max_tokens=5,
+        )
+        results["llm"] = {"ok": True, "msg": resp.choices[0].message.content}
+    except Exception as e:
+        results["llm"] = {"ok": False, "msg": str(e)}
+    return results
+
+
 @app.get("/api/datasets")
 async def get_datasets():
     return _cfg.get("DATASETS", [])

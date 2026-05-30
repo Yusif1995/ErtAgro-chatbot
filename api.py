@@ -168,13 +168,43 @@ async def health():
 
 @app.get("/api/test-connections")
 async def test_connections():
+    import requests as req
     results = {}
-    # Test PBI
+
+    # Test token
+    try:
+        token = _pbi._get_token()
+        results["token"] = {"ok": True, "msg": "Token alındı"}
+    except Exception as e:
+        results["token"] = {"ok": False, "msg": str(e)}
+        return results
+
+    # List workspaces service principal can see
+    try:
+        r = req.get(
+            "https://api.powerbi.com/v1.0/myorg/groups",
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=30,
+        )
+        workspaces = r.json().get("value", []) if r.status_code == 200 else []
+        results["visible_workspaces"] = [
+            {"id": w["id"], "name": w["name"]} for w in workspaces
+        ]
+    except Exception as e:
+        results["visible_workspaces"] = str(e)
+
+    # Test specific dataset
     try:
         ok, msg = _pbi.test_connection()
         results["powerbi"] = {"ok": ok, "msg": msg}
     except Exception as e:
         results["powerbi"] = {"ok": False, "msg": str(e)}
+
+    results["configured"] = {
+        "workspace_id": _pbi.workspace_id,
+        "dataset_id": _pbi.dataset_id,
+    }
+
     # Test LLM
     try:
         from openai import AzureOpenAI
@@ -191,6 +221,7 @@ async def test_connections():
         results["llm"] = {"ok": True, "msg": resp.choices[0].message.content}
     except Exception as e:
         results["llm"] = {"ok": False, "msg": str(e)}
+
     return results
 
 

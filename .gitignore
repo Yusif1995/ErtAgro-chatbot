@@ -1,0 +1,18 @@
+.env
+venv/
+__pycache__/
+*.pyc
+*.zip
+.streamlit/secrets.toml
+
+# Frontend build artifacts — deploy üçün lazım deyil
+ertagro-platform/frontend/node_modules/
+ertagro-platform/frontend/.next/
+ertagro-platform/frontend/out/
+static/
+frontend_dist/
+
+# Azure logs — deploy edilməsin
+app_logs/
+azlogs/
+azlogs2/

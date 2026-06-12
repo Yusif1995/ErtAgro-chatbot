@@ -102,7 +102,7 @@ export default function RightPanel({
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Məhsul Xüsusiyyəti</label>
+              <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Xüsusiyyət Qrupu</label>
               <select value={filters.xususiyyetQrupu || ''} onChange={(e) => handleFilterChange('xususiyyetQrupu', e.target.value)} className={inputCls}>
                 <option value="">Bütün xüsusiyyətlər</option>
                 {xusOptions.map((v) => <option key={v} value={v}>{v}</option>)}

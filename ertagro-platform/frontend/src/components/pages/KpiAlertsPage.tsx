@@ -11,6 +11,8 @@ import {
   ResponsiveContainer, LabelList,
 } from 'recharts'
 import type { Filter } from '@/types'
+import { useTheme } from '@/hooks/useTheme'
+
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || ''
 
@@ -67,7 +69,7 @@ function EmailModal({
     filters.sobe && `Şöbə: ${filters.sobe}`,
     filters.category && `Kateqoriya: ${filters.category}`,
     filters.maliTipi && `Malın Tipi: ${filters.maliTipi}`,
-    filters.xususiyyetQrupu && `Xüsusiyyət: ${filters.xususiyyetQrupu}`,
+    filters.xususiyyetQrupu && `Xüsusiyyət Qrupu: ${filters.xususiyyetQrupu}`,
     filters.dateFrom && `Başlanğıc: ${filters.dateFrom}`,
     filters.dateTo && `Son: ${filters.dateTo}`,
   ].filter(Boolean).join(' | ')
@@ -257,6 +259,7 @@ const TREND_CONFIGS = [
 function TrendCharts({ filters }: { filters: Filter }) {
   const [data, setData] = useState<TrendPoint[]>([])
   const [loading, setLoading] = useState(true)
+  const { isDark } = useTheme()
 
   useEffect(() => {
     setLoading(true)
@@ -271,7 +274,37 @@ function TrendCharts({ filters }: { filters: Filter }) {
 
     fetch(`${API_BASE}/api/kpi-trend?${params}`)
       .then(r => r.json())
-      .then(d => setData(Array.isArray(d) ? d : []))
+      .then(d => {
+        if (!Array.isArray(d)) {
+          setData([])
+          return
+        }
+
+        const currentMonth = new Date().getMonth() + 1 // 1-indexed (1 to 12)
+        const AZ_MONTHS = ["", "Yan", "Fev", "Mar", "Apr", "May", "İyn", "İyl", "Avq", "Sen", "Okt", "Noy", "Dek"]
+
+        const dataMap = new Map<number, TrendPoint>()
+        d.forEach((item: TrendPoint) => {
+          dataMap.set(item.month, item)
+        })
+
+        const completeData: TrendPoint[] = []
+        for (let m = 1; m <= currentMonth; m++) {
+          if (dataMap.has(m)) {
+            completeData.push(dataMap.get(m)!)
+          } else {
+            completeData.push({
+              month: m,
+              monthName: AZ_MONTHS[m] || String(m),
+              sales: 0,
+              volume: 0,
+              profit: 0
+            })
+          }
+        }
+
+        setData(completeData)
+      })
       .catch(() => setData([]))
       .finally(() => setLoading(false))
   }, [filters])
@@ -298,24 +331,24 @@ function TrendCharts({ filters }: { filters: Filter }) {
             {cfg.label} — Aylıq Trend ({cfg.unit})
           </h3>
           <ResponsiveContainer width="100%" height={170}>
-            <LineChart data={data} margin={{ top: 24, right: 8, bottom: 0, left: 8 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+            <LineChart data={data} margin={{ top: 24, right: 36, bottom: 0, left: 36 }}>
               <XAxis
                 dataKey="monthName"
-                tick={{ fontSize: 11, fill: '#94a3b8' }}
+                tick={{ fontSize: 11, fill: isDark ? '#cbd5e1' : '#64748b' }}
                 axisLine={false}
                 tickLine={false}
               />
-              <YAxis hide />
+              <YAxis hide domain={[0, (dataMax: number) => dataMax === 0 ? 100 : dataMax * 1.18]} />
               <Tooltip
                 formatter={(v: number) => [fmt(v), cfg.label]}
                 contentStyle={{
                   fontSize: 12,
                   borderRadius: 8,
-                  border: '1px solid #e2e8f0',
+                  border: isDark ? '1px solid #475569' : '1px solid #e2e8f0',
                   boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+                  backgroundColor: isDark ? '#1e293b' : '#ffffff',
                 }}
-                labelStyle={{ fontWeight: 600, color: '#334155' }}
+                labelStyle={{ fontWeight: 600, color: isDark ? '#f8fafc' : '#334155' }}
               />
               <Line
                 type="monotone"
@@ -328,7 +361,7 @@ function TrendCharts({ filters }: { filters: Filter }) {
                 <LabelList
                   dataKey={cfg.key}
                   position="top"
-                  style={{ fontSize: 9, fill: '#64748b' }}
+                  style={{ fontSize: 10, fill: isDark ? '#f8fafc' : '#1e293b', fontWeight: 600 }}
                   formatter={fmt}
                 />
               </Line>

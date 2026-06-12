@@ -521,7 +521,7 @@ async def get_filter_values():
         ("Şöbə",              "'Mal satışı hesabatı (Cəm)'[Şöbə]"),
         ("Kateqoriya",        "'Mal satışı hesabatı (Cəm)'[Kateqoriya]"),
         ("Malın Tipi",        "'Mal satışı hesabatı (Cəm)'[Tipi]"),
-        ("Xüsusiyyət Qrupu",  "'Dim-Mal'[Xüsusiyyət Qrupu]"),
+        ("Xüsusiyyət Qrupu",  "'Dim_Mal'[Xüsusiyyət Qrupu]"),
     ]
     for col_name, pbi_col in col_map:
         try:
@@ -600,7 +600,7 @@ async def get_kpi_alerts(
         if mali_tipi:
             c.append(f"'Mal satışı hesabatı (Cəm)'[Tipi] = \"{mali_tipi}\"")
         if xususiyyet_qrupu:
-            c.append(f"'Dim-Mal'[Xüsusiyyət Qrupu] = \"{xususiyyet_qrupu}\"")
+            c.append(f"'Dim_Mal'[Xüsusiyyət Qrupu] = \"{xususiyyet_qrupu}\"")
         return c
 
     def flt(measure: str) -> str:
@@ -742,7 +742,7 @@ async def get_kpi_trend(
     if mali_tipi:
         flt_conds.append(f"{_T}[Tipi] = \"{mali_tipi}\"")
     if xususiyyet_qrupu:
-        flt_conds.append(f"'Dim-Mal'[Xüsusiyyət Qrupu] = \"{xususiyyet_qrupu}\"")
+        flt_conds.append(f"'Dim_Mal'[Xüsusiyyət Qrupu] = \"{xususiyyet_qrupu}\"")
 
     if date_from and date_to:
         from datetime import date as _dc

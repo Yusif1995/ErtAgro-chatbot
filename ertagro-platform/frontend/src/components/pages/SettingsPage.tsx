@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import {
-  User,
   Database,
   Clock,
   CheckCircle2,
@@ -10,7 +9,6 @@ import {
   Loader2,
   Trash2,
   RefreshCw,
-  Mail,
   Shield,
 } from 'lucide-react'
 import { api } from '@/lib/api'
@@ -67,48 +65,6 @@ export default function SettingsPage({ historyCount, onClearHistory }: SettingsP
   return (
     <div className="flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-900 p-6">
       <div className="max-w-2xl mx-auto space-y-6">
-
-        {/* User Profile */}
-        <section className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-card overflow-hidden">
-          <div className="px-5 py-4 border-b border-slate-50 dark:border-slate-700 flex items-center gap-2">
-            <User size={16} className="text-brand-600" />
-            <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-200">İstifadəçi Profili</h2>
-          </div>
-          <div className="p-5">
-            <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-full bg-brand-100 flex items-center justify-center flex-shrink-0">
-                <span className="text-brand-700 font-bold text-xl">Y</span>
-              </div>
-              <div>
-                <p className="font-semibold text-slate-800">Yusif Vahidov</p>
-                <p className="text-sm text-slate-500 mt-0.5">Data Analyst · ErtAgro</p>
-                <div className="flex items-center gap-1.5 mt-1.5">
-                  <Mail size={12} className="text-slate-400" />
-                  <p className="text-xs text-slate-400 dark:text-slate-500">vahidovyusif1995@gmail.com</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-5 grid grid-cols-2 gap-3">
-              <div className="bg-slate-50 dark:bg-slate-700/50 rounded-xl p-3">
-                <p className="text-xs text-slate-400 mb-1">Platforma</p>
-                <p className="text-sm font-medium text-slate-700 dark:text-slate-200">ErtAgro Analytics</p>
-              </div>
-              <div className="bg-slate-50 dark:bg-slate-700/50 rounded-xl p-3">
-                <p className="text-xs text-slate-400 mb-1">AI Modeli</p>
-                <p className="text-sm font-medium text-slate-700 dark:text-slate-200">GPT-4o (Azure)</p>
-              </div>
-              <div className="bg-slate-50 dark:bg-slate-700/50 rounded-xl p-3">
-                <p className="text-xs text-slate-400 mb-1">Data Mənbəyi</p>
-                <p className="text-sm font-medium text-slate-700 dark:text-slate-200">Power BI + Fabric SQL</p>
-              </div>
-              <div className="bg-slate-50 dark:bg-slate-700/50 rounded-xl p-3">
-                <p className="text-xs text-slate-400 mb-1">Deployment</p>
-                <p className="text-sm font-medium text-slate-700 dark:text-slate-200">Azure App Service</p>
-              </div>
-            </div>
-          </div>
-        </section>
 
         {/* SQL Connections */}
         <section className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-card overflow-hidden">

@@ -198,29 +198,33 @@ function KpiCard({
   const isAlert = kpi.alert
 
   return (
-    <div className={`bg-white rounded-2xl p-5 shadow-card border transition-all ${
-      isAlert ? 'border-red-200 bg-red-50/20' : 'border-slate-100 hover:border-slate-200'
+    <div className={`rounded-2xl p-5 shadow-card border transition-all ${
+      isAlert
+        ? 'border-red-200 dark:border-red-800 bg-red-50/30 dark:bg-red-900/10'
+        : 'bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 hover:border-slate-200 dark:hover:border-slate-600'
     }`}>
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center gap-2.5">
           <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-            isAlert ? 'bg-red-100' : 'bg-brand-50'
+            isAlert ? 'bg-red-100 dark:bg-red-900/30' : 'bg-brand-50 dark:bg-brand-900/30'
           }`}>
             {isAlert
               ? <AlertTriangle size={18} className="text-red-500" />
-              : <Icon size={18} className="text-brand-600" />
+              : <Icon size={18} className="text-brand-600 dark:text-brand-400" />
             }
           </div>
           <div>
-            <p className="text-xs font-medium text-slate-500">{kpi.label}</p>
+            <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{kpi.label}</p>
             {isAlert
               ? <span className="text-xs font-semibold text-red-500">⚠ Hədd aşıldı</span>
-              : <span className="text-xs text-slate-400">{kpi.period}</span>
+              : <span className="text-xs text-slate-400 dark:text-slate-500">{kpi.period}</span>
             }
           </div>
         </div>
         <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold ${
-          isUp ? 'bg-brand-50 text-brand-700' : 'bg-red-50 text-red-600'
+          isUp
+            ? 'bg-brand-50 dark:bg-brand-900/40 text-brand-700 dark:text-brand-400'
+            : 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400'
         }`}>
           {isUp ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
           {kpi.change > 0 ? '+' : ''}{kpi.change}%
@@ -228,12 +232,12 @@ function KpiCard({
       </div>
 
       <div className="mb-3">
-        <p className="text-2xl font-bold text-slate-800">
+        <p className="text-2xl font-bold text-slate-800 dark:text-slate-100">
           {formatValue(kpi.value, kpi.unit)}
-          <span className="text-sm font-medium text-slate-400 ml-1">{kpi.unit}</span>
+          <span className="text-sm font-medium text-slate-400 dark:text-slate-500 ml-1">{kpi.unit}</span>
         </p>
         {kpi.threshold > 0 && (
-          <p className="text-xs text-slate-400 mt-0.5">
+          <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
             Hədd: {formatValue(kpi.threshold, kpi.unit)} {kpi.unit}
           </p>
         )}
@@ -241,7 +245,7 @@ function KpiCard({
 
       {kpi.threshold > 0 && (
         <div className="mb-3">
-          <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+          <div className="h-1.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
             <div
               className={`h-full rounded-full transition-all ${isAlert ? 'bg-red-400' : 'bg-brand-500'}`}
               style={{ width: `${Math.min(100, (kpi.value / (kpi.threshold * 1.5)) * 100)}%` }}
@@ -252,7 +256,7 @@ function KpiCard({
 
       <button
         onClick={() => onShare(kpi)}
-        className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg border border-slate-200 text-xs font-medium text-slate-600 hover:bg-brand-50 hover:text-brand-700 hover:border-brand-200 transition-all"
+        className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg border border-slate-200 dark:border-slate-600 text-xs font-medium text-slate-600 dark:text-slate-400 hover:bg-brand-50 dark:hover:bg-brand-900/30 hover:text-brand-700 dark:hover:text-brand-400 hover:border-brand-200 dark:hover:border-brand-700 transition-all"
       >
         <Mail size={11} />
         Email ilə paylaş
@@ -293,10 +297,12 @@ export default function KpiAlertsPage({ filters = {} }: KpiAlertsPageProps) {
     fetchKpis(filters)
   }, [filters, fetchKpis])
 
-  const alertCount = kpis.filter(k => k.alert).length
+  const SHOW_IDS = ['total_sales', 'total_volume', 'profit']
+  const displayKpis = kpis.filter(k => SHOW_IDS.includes(k.id))
+  const alertCount = displayKpis.filter(k => k.alert).length
 
   return (
-    <div className="flex flex-col flex-1 min-h-0 overflow-y-auto bg-surface-2 p-6">
+    <div className="flex flex-col flex-1 min-h-0 overflow-y-auto bg-surface-2 dark:bg-slate-900 p-6">
       {shareKpi && (
         <EmailModal
           kpi={shareKpi}
@@ -308,21 +314,20 @@ export default function KpiAlertsPage({ filters = {} }: KpiAlertsPageProps) {
       {/* Header */}
       <div className="flex items-center justify-between mb-5">
         <div>
-          <h2 className="text-base font-semibold text-slate-800">KPI Monitorinq</h2>
-          <p className="text-xs text-slate-500 mt-0.5">
+          <h2 className="text-base font-semibold text-slate-800 dark:text-slate-100">KPI Monitorinq</h2>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
             {loading ? 'Yüklənir...' : alertCount > 0
               ? <span className="text-red-500 font-medium">{alertCount} KPI hədd aşmışdır</span>
               : 'Bütün KPI-lar normal səviyyədədir'
             }
           </p>
         </div>
-        {/* Active filters display */}
         {(filters.anbar || filters.sobe || filters.category || filters.dateFrom) && (
           <div className="flex flex-wrap gap-1.5">
             {[filters.anbar, filters.sobe, filters.category, filters.dateFrom && `${filters.dateFrom}${filters.dateTo ? ' → ' + filters.dateTo : ''}`]
               .filter(Boolean)
               .map((v, i) => (
-                <span key={i} className="px-2 py-1 bg-brand-50 text-brand-700 text-xs font-medium rounded-full border border-brand-100">
+                <span key={i} className="px-2 py-1 bg-brand-50 dark:bg-brand-900/30 text-brand-700 dark:text-brand-400 text-xs font-medium rounded-full border border-brand-100 dark:border-brand-800">
                   {v}
                 </span>
               ))}
@@ -335,8 +340,8 @@ export default function KpiAlertsPage({ filters = {} }: KpiAlertsPageProps) {
           <Loader2 size={24} className="text-brand-600 animate-spin" />
         </div>
       ) : (
-        <div className="grid grid-cols-2 xl:grid-cols-3 gap-4">
-          {kpis.map(kpi => (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {displayKpis.map(kpi => (
             <KpiCard key={kpi.id} kpi={kpi} onShare={setShareKpi} />
           ))}
         </div>

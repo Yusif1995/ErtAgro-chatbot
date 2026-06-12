@@ -1,7 +1,7 @@
 'use client'
 
 import {
-  MessageSquare, BarChart2, TrendingUp, Bell, Database, Settings,
+  MessageSquare, TrendingUp, Bell, Settings,
   Clock, ChevronLeft, ChevronRight,
 } from 'lucide-react'
 import clsx from 'clsx'
@@ -10,12 +10,10 @@ import type { QuerySession } from '@/types'
 type NavItem = { id: string; label: string; icon: React.ElementType }
 
 const NAV_ITEMS: NavItem[] = [
-  { id: 'chat',     label: 'Chatbot',       icon: MessageSquare },
-  { id: 'reports',  label: 'Reports',       icon: BarChart2 },
-  { id: 'forecast', label: 'ML Proqnoz',    icon: TrendingUp },
-  { id: 'alerts',   label: 'KPI Alerts',    icon: Bell },
-  { id: 'sources',  label: 'Data Sources',  icon: Database },
-  { id: 'settings', label: 'Settings',      icon: Settings },
+  { id: 'chat',     label: 'Chatbot',    icon: MessageSquare },
+  { id: 'forecast', label: 'ML Proqnoz', icon: TrendingUp },
+  { id: 'alerts',   label: 'KPI Alerts', icon: Bell },
+  { id: 'settings', label: 'Ayarlar',    icon: Settings },
 ]
 
 function formatRelativeTime(timestamp: string): string {
@@ -152,27 +150,6 @@ export default function Sidebar({
         </button>
       </div>
 
-      {/* User Profile */}
-      {!collapsed && (
-        <div className="p-4 border-t border-slate-100 dark:border-slate-700">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-brand-100 dark:bg-brand-900/50 flex items-center justify-center flex-shrink-0">
-              <span className="text-brand-700 dark:text-brand-400 font-semibold text-sm">Y</span>
-            </div>
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-slate-700 dark:text-slate-200 leading-tight truncate">Yusif Vahidov</p>
-              <p className="text-xs text-slate-400 dark:text-slate-500 truncate">Data Analyst</p>
-            </div>
-          </div>
-        </div>
-      )}
-      {collapsed && (
-        <div className="p-3 border-t border-slate-100 dark:border-slate-700 flex justify-center">
-          <div className="w-8 h-8 rounded-full bg-brand-100 dark:bg-brand-900/50 flex items-center justify-center">
-            <span className="text-brand-700 dark:text-brand-400 font-semibold text-sm">Y</span>
-          </div>
-        </div>
-      )}
     </aside>
   )
 }

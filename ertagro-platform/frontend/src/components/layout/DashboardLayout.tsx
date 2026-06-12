@@ -6,9 +6,7 @@ import Sidebar from './Sidebar'
 import Header from './Header'
 import ChatPanel from '@/components/chat/ChatPanel'
 import MLForecast from '@/components/ml/MLForecast'
-import ReportsPage from '@/components/pages/ReportsPage'
 import KpiAlertsPage from '@/components/pages/KpiAlertsPage'
-import DataSourcesPage from '@/components/pages/DataSourcesPage'
 import SettingsPage from '@/components/pages/SettingsPage'
 import RightPanel from '@/components/filters/RightPanel'
 import { useChat } from '@/hooks/useChat'
@@ -17,11 +15,9 @@ import type { Filter, QuerySession } from '@/types'
 
 const PAGE_TITLES: Record<string, string> = {
   chat:     'Chatbot - Power BI Assistant',
-  reports:  'Hesabatlar',
   forecast: 'ML Proqnoz',
   alerts:   'KPI Monitorinq',
-  sources:  'Data Mənbələri',
-  settings: 'Parametrlər',
+  settings: 'Ayarlar',
 }
 
 export default function DashboardLayout() {
@@ -114,8 +110,6 @@ export default function DashboardLayout() {
               />
             )}
 
-            {activeNav === 'reports' && <ReportsPage />}
-
             {activeNav === 'forecast' && (
               <div className="flex flex-col flex-1 min-h-0 overflow-y-auto bg-slate-50 dark:bg-slate-900 p-6">
                 <div className="mb-4">
@@ -127,7 +121,6 @@ export default function DashboardLayout() {
             )}
 
             {activeNav === 'alerts' && <KpiAlertsPage filters={filters} />}
-            {activeNav === 'sources' && <DataSourcesPage />}
             {activeNav === 'settings' && (
               <SettingsPage historyCount={history.length} onClearHistory={clearHistory} />
             )}

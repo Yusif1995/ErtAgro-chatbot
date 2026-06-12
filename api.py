@@ -639,11 +639,10 @@ async def get_kpi_alerts(
     period = "Seçilmiş dövr" if (date_from or date_to) else "Bu ay"
 
     # KPI dəyərləri
-    _T = "'Mal satışı hesabatı (Cəm)'"
+    _T      = "'Mal satışı hesabatı (Cəm)'"
     _SALES  = f"SUM({_T}[Satış Məbləği])"
     _PROFIT = f"SUM({_T}[Gelir])"
-    _MARGIN = f"DIVIDE(SUM({_T}[Gelir]),SUM({_T}[Satış Məbləği]))*100"
-    _STOK   = f"SUM({_T}[Miqdar])"
+    _VOL    = f"SUM({_T}[Miqdar])"
 
     sales_curr  = pbi_val(flt(_SALES))
     sales_now   = pbi_val(now_month_flt(_SALES))
@@ -653,11 +652,9 @@ async def get_kpi_alerts(
     profit_now  = pbi_val(now_month_flt(_PROFIT))
     profit_prev = pbi_val(prev_month_flt(_PROFIT))
 
-    margin_curr = pbi_val(flt(_MARGIN))
-    margin_now  = pbi_val(now_month_flt(_MARGIN))
-    margin_prev = pbi_val(prev_month_flt(_MARGIN))
-
-    stok_curr   = pbi_val(flt(_STOK))
+    vol_curr    = pbi_val(flt(_VOL))
+    vol_now     = pbi_val(now_month_flt(_VOL))
+    vol_prev    = pbi_val(prev_month_flt(_VOL))
 
     return [
         {
@@ -669,27 +666,20 @@ async def get_kpi_alerts(
             "period": period,
         },
         {
+            "id": "total_volume", "label": "Satış Miqdarı",
+            "value": vol_curr, "unit": "kq",
+            "change": chg(vol_now, vol_prev),
+            "trend": "up" if chg(vol_now, vol_prev) >= 0 else "down",
+            "threshold": 0, "alert": False,
+            "period": period,
+        },
+        {
             "id": "profit", "label": "Gəlir",
             "value": profit_curr, "unit": "₼",
             "change": chg(profit_now, profit_prev),
             "trend": "up" if chg(profit_now, profit_prev) >= 0 else "down",
             "threshold": 50_000, "alert": profit_curr < 50_000,
             "period": period,
-        },
-        {
-            "id": "margin", "label": "Mənfəət Marjası",
-            "value": margin_curr, "unit": "%",
-            "change": chg(margin_now, margin_prev),
-            "trend": "up" if chg(margin_now, margin_prev) >= 0 else "down",
-            "threshold": 15.0, "alert": margin_curr < 15.0,
-            "period": period,
-        },
-        {
-            "id": "inventory", "label": "Anbar Səviyyəsi",
-            "value": stok_curr, "unit": "ton",
-            "change": 0, "trend": "up",
-            "threshold": 5_000, "alert": stok_curr < 5_000,
-            "period": "Hal-hazırki",
         },
     ]
 

@@ -109,6 +109,18 @@ def _get_schema(workspace_id: str, dataset_id: str) -> str:
     return pbi_schema
 
 
+def normalize_az(text: str) -> str:
+    mapping = {
+        'ə': 'e', 'ş': 's', 'ç': 'c', 'ğ': 'g', 'ö': 'o', 'ü': 'u', 'ı': 'i',
+        'ə': 'e', 'ş': 's', 'ç': 'c', 'ğ': 'g', 'ö': 'o', 'ü': 'u', 'ı': 'i',
+        'Ə': 'e', 'Ş': 's', 'Ç': 'c', 'Ğ': 'g', 'Ö': 'o', 'Ü': 'u', 'I': 'i',
+        'İ': 'i', 'i': 'i'
+    }
+    for k, v in mapping.items():
+        text = text.replace(k, v)
+    return text.strip().lower()
+
+
 def _safe_float(val: Any) -> float:
     try:
         return float(val) if val is not None and str(val) != "nan" else 0.0
@@ -458,7 +470,29 @@ async def chat(req: ChatRequest):
 
     # Clarification Check
     filter_data = _get_filter_values_data()
-    clarify_res = _llm.check_clarification(req.question, filter_data)
+    
+    # Check if we should bypass clarification
+    bypass_clarification = False
+    q_norm = normalize_az(req.question)
+    
+    # 1. Check if it's a "Bütün ... məhsulları" style request
+    if q_norm.startswith("butun ") and q_norm.endswith(" mehsullari"):
+        bypass_clarification = True
+        
+    # 2. Check if it's an exact match for one of the database filter values (case & az-accents insensitive)
+    if not bypass_clarification:
+        for cat, values in filter_data.items():
+            for val in values:
+                if q_norm == normalize_az(str(val)):
+                    bypass_clarification = True
+                    break
+            if bypass_clarification:
+                break
+                
+    clarify_res = {"clarification_needed": False}
+    if not bypass_clarification:
+        clarify_res = _llm.check_clarification(req.question, filter_data)
+
     if clarify_res.get("clarification_needed"):
         return {
             "answer": clarify_res.get("message", "Zəhmət olmasa seçimlərdən birini təsdiqləyin:"),

@@ -286,11 +286,12 @@ async def get_kpis():
     if not _initialized:
         return dummy
 
+    _T = "'Mal satışı hesabatı (Cəm)'"
     measures = [
-        ("total_sales",       "[Ümumi Satış]",  "AZN", "TrendingUp",  "vs əvvəlki dövr"),
-        ("profit",            "[Ümumi Gəlir]",  "AZN", "DollarSign",  "Ümumi gəlir"),
-        ("inventory",         "[Stok Miqdarı]", "ton", "Package",     "Mövcud stok"),
-        ("forecast_accuracy", "[Marja %]",      "%",   "Target",      "Gross Marja"),
+        ("total_sales",       f"SUM({_T}[Satış Məbləği])",                                    "AZN",  "TrendingUp", "vs əvvəlki dövr"),
+        ("profit",            f"SUM({_T}[Gelir])",                                             "AZN",  "DollarSign", "Ümumi gəlir"),
+        ("inventory",         f"SUM({_T}[Miqdar])",                                            "ədəd", "Package",    "Satış miqdarı"),
+        ("forecast_accuracy", f"DIVIDE(SUM({_T}[Gelir]),SUM({_T}[Satış Məbləği]))*100",        "%",    "Target",     "Gross Marja"),
     ]
     labels = ["Total Satış", "Ümumi Mənfəət", "Anbar Səviyyəsi", "Proqnoz Dəqiqliyi"]
     result = []
@@ -531,8 +532,8 @@ async def get_insights():
 
     try:
         df_sales = _pbi.execute_query(
-            f"EVALUATE ROW(\"Bu ay\", CALCULATE([Ümumi Satış],Calendar1[Date]>=DATE({now.year},{now.month},1)),"
-            f"\"Ötən ay\", CALCULATE([Ümumi Satış],Calendar1[Date]>=DATE({now.year},{now.month-1 or 12},1),"
+            f"EVALUATE ROW(\"Bu ay\", CALCULATE(SUM('Mal satışı hesabatı (Cəm)'[Satış Məbləği]),Calendar1[Date]>=DATE({now.year},{now.month},1)),"
+            f"\"Ötən ay\", CALCULATE(SUM('Mal satışı hesabatı (Cəm)'[Satış Məbləği]),Calendar1[Date]>=DATE({now.year},{now.month-1 or 12},1),"
             f"Calendar1[Date]<DATE({now.year},{now.month},1)))"
         )
         if not df_sales.empty:
@@ -626,19 +627,25 @@ async def get_kpi_alerts(
     period = "Seçilmiş dövr" if (date_from or date_to) else "Bu ay"
 
     # KPI dəyərləri
-    sales_curr  = pbi_val(flt("[Ümumi Satış]"))
-    sales_now   = pbi_val(now_month_flt("[Ümumi Satış]"))
-    sales_prev  = pbi_val(prev_month_flt("[Ümumi Satış]"))
+    _T = "'Mal satışı hesabatı (Cəm)'"
+    _SALES  = f"SUM({_T}[Satış Məbləği])"
+    _PROFIT = f"SUM({_T}[Gelir])"
+    _MARGIN = f"DIVIDE(SUM({_T}[Gelir]),SUM({_T}[Satış Məbləği]))*100"
+    _STOK   = f"SUM({_T}[Miqdar])"
 
-    profit_curr = pbi_val(flt("[Ümumi Gəlir]"))
-    profit_now  = pbi_val(now_month_flt("[Ümumi Gəlir]"))
-    profit_prev = pbi_val(prev_month_flt("[Ümumi Gəlir]"))
+    sales_curr  = pbi_val(flt(_SALES))
+    sales_now   = pbi_val(now_month_flt(_SALES))
+    sales_prev  = pbi_val(prev_month_flt(_SALES))
 
-    margin_curr = pbi_val(flt("[Marja %]"))
-    margin_now  = pbi_val(now_month_flt("[Marja %]"))
-    margin_prev = pbi_val(prev_month_flt("[Marja %]"))
+    profit_curr = pbi_val(flt(_PROFIT))
+    profit_now  = pbi_val(now_month_flt(_PROFIT))
+    profit_prev = pbi_val(prev_month_flt(_PROFIT))
 
-    stok_curr   = pbi_val(flt("[Stok Miqdarı]"))
+    margin_curr = pbi_val(flt(_MARGIN))
+    margin_now  = pbi_val(now_month_flt(_MARGIN))
+    margin_prev = pbi_val(prev_month_flt(_MARGIN))
+
+    stok_curr   = pbi_val(flt(_STOK))
 
     return [
         {

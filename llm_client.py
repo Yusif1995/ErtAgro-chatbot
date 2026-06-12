@@ -66,10 +66,22 @@ QAYDALAR:
 2. Query EVALUATE ilə başlamalıdır.
 3. Schema-dakı cədvəl və sütun adlarına sadiq qal.
 4. Əgər əvvəlki söhbət varsa, kontekstə diqqət et.
-5. Aggregate-lərdə mövcud measure-ləri üstün tut.
-6. TOP N üçün TOPN() + ORDER BY.
-7. Nəticə həmişə cədvəl formatda olmalıdır.
-8. Boşluq olan cədvəl adlarını HƏMİŞƏ tək dırnaqla yaz: 'Mal satışı hesabatı (Cəm)'[Satış Məbləği]
+5. MÜTLƏQDİR: Bu datasette adlandırılmış MEASURE YOXDUR. [MeasureAdı] formatında heç vaxt istifadə etmə. Əvəzinə HƏMİŞƏ SUM(), COUNT(), AVERAGE(), MAX(), MIN() kimi aggregasiya funksiyalarını sütunlara birbaşa tətbiq et.
+   ❌ YANLIŞ: [Ümumi Satış]
+   ✅ DOĞRU:  SUM('Mal satışı hesabatı (Cəm)'[Satış Məbləği])
+6. Qruplama + aggregasiya üçün SUMMARIZECOLUMNS istifadə et (SUMMARIZE deyil).
+7. TOP N üçün TOPN() + ORDER BY.
+8. Nəticə həmişə cədvəl formatda olmalıdır.
+9. Boşluq olan cədvəl adlarını HƏMİŞƏ tək dırnaqla yaz: 'Mal satışı hesabatı (Cəm)'[Satış Məbləği]
+
+ƏSAS SÜTUNLAR ('Mal satışı hesabatı (Cəm)' cədvəlindən):
+- Satış Məbləği  → ümumi satış üçün SUM et
+- Gelir          → gəlir/mənfəət üçün SUM et
+- Miqdar         → miqdar üçün SUM et
+- Maya Məbləği   → maya dəyəri üçün SUM et
+- Cashback Məbləği → cashback üçün SUM et
+- Malın adı, Kateqoriya, Anbar, Şöbə, Bölgə → qruplama üçün
+- tarix          → tarix filtri üçün (Calendar1[Date] ilə əlaqəlidir)
 
 FİLTR DƏYƏRİ QAYDASI — MÜTLƏQDİR:
 - Schema-nın "FİLTR DƏYƏRLƏRİ" bölməsinə BAX və oradakı dəyərləri AYNEN istifadə et.
@@ -87,19 +99,22 @@ TARİX QAYDASI:
 
 NÜMUNƏLƏR:
 Sual: "Bu il ümumi satış?"
-DAX: EVALUATE ROW("Ümumi Satış", CALCULATE([Ümumi Satış], 'Calendar1'[Year] = YEAR(TODAY())))
+DAX: EVALUATE ROW("Ümumi Satış", CALCULATE(SUM('Mal satışı hesabatı (Cəm)'[Satış Məbləği]), Calendar1[Year] = YEAR(TODAY())))
 
 Sual: "Aprel ayı satışı?"
-DAX: EVALUATE ROW("Aprel Satışı", CALCULATE([Ümumi Satış], 'Calendar1'[MonthOfYear] = 4))
+DAX: EVALUATE ROW("Aprel Satışı", CALCULATE(SUM('Mal satışı hesabatı (Cəm)'[Satış Məbləği]), Calendar1[MonthOfYear] = 4))
 
 Sual: "Şəmkir şöbəsinin satışı?"
-DAX: EVALUATE ROW("Satış", CALCULATE([Ümumi Satış], 'Mal satışı hesabatı (Cəm)'[Şöbə] = "Semkir"))
+DAX: EVALUATE ROW("Satış", CALCULATE(SUM('Mal satışı hesabatı (Cəm)'[Satış Məbləği]), 'Mal satışı hesabatı (Cəm)'[Şöbə] = "Semkir"))
 
 Sual: "Ən çox satan 5 məhsul"
-DAX: EVALUATE TOPN(5, SUMMARIZE('Mal satışı hesabatı (Cəm)', 'Mal satışı hesabatı (Cəm)'[Malın adı], "Satış", [Ümumi Satış]), [Satış], DESC)
+DAX: EVALUATE TOPN(5, SUMMARIZECOLUMNS('Mal satışı hesabatı (Cəm)'[Malın adı], "Satış", SUM('Mal satışı hesabatı (Cəm)'[Satış Məbləği])), [Satış], DESC)
 
 Sual: "Hər kateqoriya üzrə satış?"
-DAX: EVALUATE SUMMARIZE('Mal satışı hesabatı (Cəm)', 'Mal satışı hesabatı (Cəm)'[Kateqoriya], "Satış", [Ümumi Satış])"""
+DAX: EVALUATE SUMMARIZECOLUMNS('Mal satışı hesabatı (Cəm)'[Kateqoriya], "Satış", SUM('Mal satışı hesabatı (Cəm)'[Satış Məbləği]))
+
+Sual: "Aylıq satış trendi?"
+DAX: EVALUATE SUMMARIZECOLUMNS(Calendar1[MonthOfYear], Calendar1[MonthName], "Satış", SUM('Mal satışı hesabatı (Cəm)'[Satış Məbləği]))"""
 
 ANSWER_SYSTEM = """Sən data-analyst köməkçisisən. Sualı, DAX-ı və nəticəni nəzərə alaraq Azərbaycan dilində qısa cavab ver.
 

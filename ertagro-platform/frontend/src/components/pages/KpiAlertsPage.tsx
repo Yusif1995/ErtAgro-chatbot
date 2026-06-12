@@ -266,6 +266,9 @@ function TrendCharts({ filters }: { filters: Filter }) {
     if (filters.maliTipi)         params.set('mali_tipi', filters.maliTipi)
     if (filters.xususiyyetQrupu)  params.set('xususiyyet_qrupu', filters.xususiyyetQrupu)
 
+    if (filters.dateFrom)  params.set('date_from', filters.dateFrom)
+    if (filters.dateTo)    params.set('date_to', filters.dateTo)
+
     fetch(`${API_BASE}/api/kpi-trend?${params}`)
       .then(r => r.json())
       .then(d => setData(Array.isArray(d) ? d : []))

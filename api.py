@@ -644,16 +644,45 @@ async def get_kpi_alerts(
     _VOL    = f"SUM({_T}[Miqdar])"
 
     sales_curr  = pbi_val(flt(_SALES))
-    sales_now   = pbi_val(now_month_flt(_SALES))
-    sales_prev  = pbi_val(prev_month_flt(_SALES))
-
     profit_curr = pbi_val(flt(_PROFIT))
-    profit_now  = pbi_val(now_month_flt(_PROFIT))
-    profit_prev = pbi_val(prev_month_flt(_PROFIT))
-
     vol_curr    = pbi_val(flt(_VOL))
-    vol_now     = pbi_val(now_month_flt(_VOL))
-    vol_prev    = pbi_val(prev_month_flt(_VOL))
+
+    if date_from and date_to:
+        from datetime import date as _dc
+        try:
+            _df = _dc.fromisoformat(date_from)
+            _dt = _dc.fromisoformat(date_to)
+            _day_from, _day_to = _df.day, _dt.day
+            _prev_yr = _df.year if _df.month > 1 else _df.year - 1
+            _prev_mo = _df.month - 1 if _df.month > 1 else 12
+
+            def prev_range_flt(measure: str) -> str:
+                conds = [
+                    f"Calendar1[Date] >= DATE({_prev_yr},{_prev_mo},{_day_from})",
+                    f"Calendar1[Date] <= DATE({_prev_yr},{_prev_mo},{_day_to})",
+                ] + _dim_conds()
+                return f"CALCULATE({measure}, {', '.join(conds)})"
+
+            sales_now  = sales_curr
+            sales_prev = pbi_val(prev_range_flt(_SALES))
+            profit_now  = profit_curr
+            profit_prev = pbi_val(prev_range_flt(_PROFIT))
+            vol_now    = vol_curr
+            vol_prev   = pbi_val(prev_range_flt(_VOL))
+        except Exception:
+            sales_now   = pbi_val(now_month_flt(_SALES))
+            sales_prev  = pbi_val(prev_month_flt(_SALES))
+            profit_now  = pbi_val(now_month_flt(_PROFIT))
+            profit_prev = pbi_val(prev_month_flt(_PROFIT))
+            vol_now     = pbi_val(now_month_flt(_VOL))
+            vol_prev    = pbi_val(prev_month_flt(_VOL))
+    else:
+        sales_now   = pbi_val(now_month_flt(_SALES))
+        sales_prev  = pbi_val(prev_month_flt(_SALES))
+        profit_now  = pbi_val(now_month_flt(_PROFIT))
+        profit_prev = pbi_val(prev_month_flt(_PROFIT))
+        vol_now     = pbi_val(now_month_flt(_VOL))
+        vol_prev    = pbi_val(prev_month_flt(_VOL))
 
     margin = round(profit_curr / sales_curr * 100, 1) if sales_curr > 0 else 0.0
 
@@ -692,8 +721,11 @@ async def get_kpi_trend(
     category: str = "",
     mali_tipi: str = "",
     xususiyyet_qrupu: str = "",
+    date_from: str = "",
+    date_to: str = "",
 ):
-    """Yanvardan bu ana kimi aylıq trend — Satış, Miqdar, Gəlir."""
+    """Yanvardan bu ana kimi aylıq trend — Satış, Miqdar, Gəlir.
+    Tarix aralığı seçildikdə hər ay üçün eyni gün aralığı filtrləşdirilir."""
     if not _initialized:
         return []
 
@@ -711,6 +743,19 @@ async def get_kpi_trend(
         flt_conds.append(f"{_T}[Tipi] = \"{mali_tipi}\"")
     if xususiyyet_qrupu:
         flt_conds.append(f"'Dim-Mal'[Xüsusiyyət Qrupu] = \"{xususiyyet_qrupu}\"")
+
+    if date_from and date_to:
+        from datetime import date as _dc
+        try:
+            _day_from = _dc.fromisoformat(date_from).day
+            _day_to   = _dc.fromisoformat(date_to).day
+            flt_conds.append(
+                f"FILTER(ALL(Calendar1), "
+                f"DAY(Calendar1[Date]) >= {_day_from} && "
+                f"DAY(Calendar1[Date]) <= {_day_to})"
+            )
+        except Exception:
+            pass
 
     filter_str = ", ".join(flt_conds)
 

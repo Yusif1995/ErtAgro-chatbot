@@ -22,7 +22,15 @@ const PAGE_TITLES: Record<string, string> = {
 
 export default function DashboardLayout() {
   const [activeNav, setActiveNav] = useState('chat')
-  const [filters, setFilters] = useState<Filter>({})
+  const [filters, setFilters] = useState<Filter>(() => {
+    const today = new Date()
+    const pad = (n: number) => String(n).padStart(2, '0')
+    const fmt = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+    return {
+      dateFrom: fmt(new Date(today.getFullYear(), today.getMonth(), 1)),
+      dateTo:   fmt(today),
+    }
+  })
   const [rightPanelOpen, setRightPanelOpen] = useState(true)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 

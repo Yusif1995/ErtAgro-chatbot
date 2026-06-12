@@ -120,7 +120,7 @@ export default function DashboardLayout() {
               </div>
             )}
 
-            {activeNav === 'alerts' && <KpiAlertsPage filters={filters} />}
+            {activeNav === 'alerts' && <KpiAlertsPage filters={filters} onFiltersChange={setFilters} />}
             {activeNav === 'settings' && (
               <SettingsPage historyCount={history.length} onClearHistory={clearHistory} />
             )}

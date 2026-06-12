@@ -4,10 +4,10 @@ import { useState, useEffect, useCallback } from 'react'
 import {
   TrendingUp, TrendingDown,
   DollarSign, Package, BarChart2, Tag, CreditCard,
-  Loader2, Send, X, CheckCircle, Mail,
+  Loader2, Send, X, CheckCircle, Mail, CalendarDays,
 } from 'lucide-react'
 import {
-  BarChart, Bar, XAxis, YAxis, Tooltip,
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, LabelList,
 } from 'recharts'
 import type { Filter } from '@/types'
@@ -295,7 +295,8 @@ function TrendCharts({ filters }: { filters: Filter }) {
             {cfg.label} — Aylıq Trend ({cfg.unit})
           </h3>
           <ResponsiveContainer width="100%" height={170}>
-            <BarChart data={data} margin={{ top: 18, right: 8, bottom: 0, left: 8 }}>
+            <LineChart data={data} margin={{ top: 24, right: 8, bottom: 0, left: 8 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
               <XAxis
                 dataKey="monthName"
                 tick={{ fontSize: 11, fill: '#94a3b8' }}
@@ -313,15 +314,22 @@ function TrendCharts({ filters }: { filters: Filter }) {
                 }}
                 labelStyle={{ fontWeight: 600, color: '#334155' }}
               />
-              <Bar dataKey={cfg.key} fill={cfg.color} radius={[4, 4, 0, 0]} maxBarSize={56}>
+              <Line
+                type="monotone"
+                dataKey={cfg.key}
+                stroke={cfg.color}
+                strokeWidth={2.5}
+                dot={{ r: 4, fill: cfg.color, strokeWidth: 0 }}
+                activeDot={{ r: 5 }}
+              >
                 <LabelList
                   dataKey={cfg.key}
                   position="top"
                   style={{ fontSize: 9, fill: '#64748b' }}
                   formatter={fmt}
                 />
-              </Bar>
-            </BarChart>
+              </Line>
+            </LineChart>
           </ResponsiveContainer>
         </div>
       ))}
@@ -331,9 +339,10 @@ function TrendCharts({ filters }: { filters: Filter }) {
 
 interface KpiAlertsPageProps {
   filters?: Filter
+  onFiltersChange?: (f: Filter) => void
 }
 
-export default function KpiAlertsPage({ filters = {} }: KpiAlertsPageProps) {
+export default function KpiAlertsPage({ filters = {}, onFiltersChange }: KpiAlertsPageProps) {
   const [kpis, setKpis] = useState<KpiItem[]>([])
   const [loading, setLoading] = useState(true)
   const [shareKpi, setShareKpi] = useState<KpiItem | null>(null)
@@ -370,7 +379,6 @@ export default function KpiAlertsPage({ filters = {} }: KpiAlertsPageProps) {
     filters.category,
     filters.maliTipi,
     filters.xususiyyetQrupu,
-    filters.dateFrom && `${filters.dateFrom}${filters.dateTo ? ' → ' + filters.dateTo : ''}`,
   ].filter(Boolean) as string[]
 
   return (
@@ -384,22 +392,46 @@ export default function KpiAlertsPage({ filters = {} }: KpiAlertsPageProps) {
       )}
 
       {/* Header */}
-      <div className="flex items-center justify-between mb-5">
+      <div className="flex items-center justify-between mb-5 gap-4 flex-wrap">
         <div>
           <h2 className="text-base font-semibold text-slate-800 dark:text-slate-100">KPI Monitorinq</h2>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
             {loading ? 'Yüklənir...' : 'Bütün KPI-lar normal səviyyədədir'}
           </p>
         </div>
-        {activeFilters.length > 0 && (
-          <div className="flex flex-wrap gap-1.5">
-            {activeFilters.map((v, i) => (
-              <span key={i} className="px-2 py-1 bg-brand-50 dark:bg-brand-900/30 text-brand-700 dark:text-brand-400 text-xs font-medium rounded-full border border-brand-100 dark:border-brand-800">
-                {v}
-              </span>
-            ))}
-          </div>
-        )}
+        <div className="flex items-center gap-2 flex-wrap">
+          {activeFilters.map((v, i) => (
+            <span key={i} className="px-2 py-1 bg-brand-50 dark:bg-brand-900/30 text-brand-700 dark:text-brand-400 text-xs font-medium rounded-full border border-brand-100 dark:border-brand-800">
+              {v}
+            </span>
+          ))}
+          {onFiltersChange && (
+            <div className="flex items-center gap-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-xl px-3 py-2 shadow-sm">
+              <CalendarDays size={13} className="text-slate-400 flex-shrink-0" />
+              <input
+                type="date"
+                value={filters.dateFrom || ''}
+                onChange={e => onFiltersChange({ ...filters, dateFrom: e.target.value || undefined })}
+                className="text-xs bg-transparent outline-none text-slate-600 dark:text-slate-300 w-[120px]"
+              />
+              <span className="text-slate-300 dark:text-slate-600 text-xs">—</span>
+              <input
+                type="date"
+                value={filters.dateTo || ''}
+                onChange={e => onFiltersChange({ ...filters, dateTo: e.target.value || undefined })}
+                className="text-xs bg-transparent outline-none text-slate-600 dark:text-slate-300 w-[120px]"
+              />
+              {(filters.dateFrom || filters.dateTo) && (
+                <button
+                  onClick={() => onFiltersChange({ ...filters, dateFrom: undefined, dateTo: undefined })}
+                  className="ml-0.5 text-slate-300 hover:text-red-400 transition-colors"
+                >
+                  <X size={12} />
+                </button>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {loading ? (

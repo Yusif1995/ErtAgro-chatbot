@@ -80,17 +80,6 @@ export default function RightPanel({
             </button>
           </div>
           <div className="space-y-3">
-            <div className="space-y-1.5">
-              <label className="block text-xs font-medium text-slate-500 dark:text-slate-400">Tarix Aralığı</label>
-              <div>
-                <p className="text-xs text-slate-400 dark:text-slate-500 mb-0.5">Başlanğıc</p>
-                <input type="date" value={filters.dateFrom || ''} onChange={(e) => handleFilterChange('dateFrom', e.target.value)} className={inputCls} />
-              </div>
-              <div>
-                <p className="text-xs text-slate-400 dark:text-slate-500 mb-0.5">Son</p>
-                <input type="date" value={filters.dateTo || ''} onChange={(e) => handleFilterChange('dateTo', e.target.value)} className={inputCls} />
-              </div>
-            </div>
             <div>
               <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Şöbə</label>
               <select value={filters.sobe || ''} onChange={(e) => handleFilterChange('sobe', e.target.value)} className={inputCls}>

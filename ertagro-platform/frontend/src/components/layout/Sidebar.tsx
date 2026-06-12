@@ -136,6 +136,22 @@ export default function Sidebar({
         )}
       </nav>
 
+      {/* User profile */}
+      <div className={clsx(
+        'border-t border-slate-100 dark:border-slate-700 px-3 py-3',
+        collapsed ? 'flex justify-center' : 'flex items-center gap-2.5'
+      )}>
+        <div className="w-8 h-8 rounded-full bg-brand-100 dark:bg-brand-900/50 flex items-center justify-center flex-shrink-0 text-brand-700 dark:text-brand-400 text-xs font-bold">
+          YV
+        </div>
+        {!collapsed && (
+          <div className="min-w-0">
+            <p className="text-xs font-semibold text-slate-700 dark:text-slate-200 truncate leading-tight">Vahidov</p>
+            <p className="text-xs text-slate-400 dark:text-slate-500 truncate leading-tight">Data Analyst</p>
+          </div>
+        )}
+      </div>
+
       {/* Collapse toggle */}
       <div className="px-2 pb-2">
         <button

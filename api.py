@@ -520,7 +520,7 @@ async def get_filter_values():
     col_map = [
         ("Şöbə",              "'Mal satışı hesabatı (Cəm)'[Şöbə]"),
         ("Kateqoriya",        "'Mal satışı hesabatı (Cəm)'[Kateqoriya]"),
-        ("Malın Tipi",        "'Mal satışı hesabatı (Cəm)'[Malın Tipi]"),
+        ("Malın Tipi",        "'Mal satışı hesabatı (Cəm)'[Tipi]"),
         ("Xüsusiyyət Qrupu",  "'Dim-Mal'[Xüsusiyyət Qrupu]"),
     ]
     for col_name, pbi_col in col_map:
@@ -598,7 +598,7 @@ async def get_kpi_alerts(
         if category:
             c.append(f"'Mal satışı hesabatı (Cəm)'[Kateqoriya] = \"{category}\"")
         if mali_tipi:
-            c.append(f"'Mal satışı hesabatı (Cəm)'[Malın Tipi] = \"{mali_tipi}\"")
+            c.append(f"'Mal satışı hesabatı (Cəm)'[Tipi] = \"{mali_tipi}\"")
         if xususiyyet_qrupu:
             c.append(f"'Dim-Mal'[Xüsusiyyət Qrupu] = \"{xususiyyet_qrupu}\"")
         return c
@@ -708,7 +708,7 @@ async def get_kpi_trend(
     if category:
         flt_conds.append(f"{_T}[Kateqoriya] = \"{category}\"")
     if mali_tipi:
-        flt_conds.append(f"{_T}[Malın Tipi] = \"{mali_tipi}\"")
+        flt_conds.append(f"{_T}[Tipi] = \"{mali_tipi}\"")
     if xususiyyet_qrupu:
         flt_conds.append(f"'Dim-Mal'[Xüsusiyyət Qrupu] = \"{xususiyyet_qrupu}\"")
 

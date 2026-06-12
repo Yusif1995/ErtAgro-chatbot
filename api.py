@@ -7,8 +7,11 @@ React static files-ı /frontend_dist/ qovluğundan serve edir.
 from __future__ import annotations
 
 import json
+from datetime import timezone, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+
+_BAKU_TZ = timezone(timedelta(hours=4))
 
 import pandas as pd
 from fastapi import FastAPI, HTTPException, Request, UploadFile, File
@@ -329,11 +332,11 @@ async def refresh_status():
                 "last_refresh": "-", "next_refresh": "-"}
     try:
         ok, msg = _pbi.test_connection()
-        now = pd.Timestamp.now()
+        now = pd.Timestamp.now(tz=_BAKU_TZ)
         return {
             "status": "success" if ok else "error",
             "message": msg,
-            "last_refresh": now.strftime("%d.%m.%Y %H:%M"),
+            "last_refresh": now.strftime("%d.%m.%Y %H:%M (Bakı)"),
             "next_refresh": "Sabah 08:45 AM",
         }
     except Exception as e:
@@ -461,11 +464,11 @@ async def trigger_refresh():
         return {"status": "error", "message": _init_error}
     try:
         ok, msg = _pbi.test_connection()
-        now = pd.Timestamp.now()
+        now = pd.Timestamp.now(tz=_BAKU_TZ)
         return {
             "status": "success" if ok else "error",
             "message": msg,
-            "last_refresh": now.strftime("%d.%m.%Y %H:%M"),
+            "last_refresh": now.strftime("%d.%m.%Y %H:%M (Bakı)"),
         }
     except Exception as e:
         return {"status": "error", "message": str(e)}
@@ -510,14 +513,15 @@ async def get_schema():
 
 @app.get("/api/filter-values")
 async def get_filter_values():
-    """Şöbə, Anbar, Kateqoriya dəyərlərini Power BI-dan qaytarır."""
+    """Şöbə, Kateqoriya, Malın Tipi, Xüsusiyyət Qrupu dəyərlərini Power BI-dan qaytarır."""
     if not _initialized:
         return {}
     result = {}
     col_map = [
-        ("Anbar",      "'Mal satışı hesabatı (Cəm)'[Anbar]"),
-        ("Şöbə",       "'Mal satışı hesabatı (Cəm)'[Şöbə]"),
-        ("Kateqoriya", "'Mal satışı hesabatı (Cəm)'[Kateqoriya]"),
+        ("Şöbə",              "'Mal satışı hesabatı (Cəm)'[Şöbə]"),
+        ("Kateqoriya",        "'Mal satışı hesabatı (Cəm)'[Kateqoriya]"),
+        ("Malın Tipi",        "'Mal satışı hesabatı (Cəm)'[Malın Tipi]"),
+        ("Xüsusiyyət Qrupu",  "'Mal satışı hesabatı (Cəm)'[Xüsusiyyət Qrupu]"),
     ]
     for col_name, pbi_col in col_map:
         try:
@@ -571,59 +575,55 @@ async def get_insights():
     return insights
 
 
+_AZ_MONTHS = ["", "Yan", "Fev", "Mar", "Apr", "May", "İyn", "İyl", "Avq", "Sen", "Okt", "Noy", "Dek"]
+
+
 @app.get("/api/kpi-alerts")
 async def get_kpi_alerts(
     date_from: str = "",
     date_to: str = "",
-    anbar: str = "",
     sobe: str = "",
     category: str = "",
+    mali_tipi: str = "",
+    xususiyyet_qrupu: str = "",
 ):
-    """Real Power BI KPI-ları — Anbar/Şöbə/Kateqoriya/tarix filtrlər dəstəklənir."""
+    """Real Power BI KPI-ları — Şöbə/Kateqoriya/MalınTipi/Xüsusiyyət/tarix filtrlər dəstəklənir."""
     if not _initialized:
         return []
 
-    # Filter DAX konteksti
+    def _dim_conds() -> list:
+        c = []
+        if sobe:
+            c.append(f"'Mal satışı hesabatı (Cəm)'[Şöbə] = \"{sobe}\"")
+        if category:
+            c.append(f"'Mal satışı hesabatı (Cəm)'[Kateqoriya] = \"{category}\"")
+        if mali_tipi:
+            c.append(f"'Mal satışı hesabatı (Cəm)'[Malın Tipi] = \"{mali_tipi}\"")
+        if xususiyyet_qrupu:
+            c.append(f"'Mal satışı hesabatı (Cəm)'[Xüsusiyyət Qrupu] = \"{xususiyyet_qrupu}\"")
+        return c
+
     def flt(measure: str) -> str:
         conds = []
         if date_from:
             conds.append(f"Calendar1[Date] >= DATE({date_from.replace('-', ',')})")
         if date_to:
             conds.append(f"Calendar1[Date] <= DATE({date_to.replace('-', ',')})")
-        if anbar:
-            conds.append(f"'Mal satışı hesabatı (Cəm)'[Anbar] = \"{anbar}\"")
-        if sobe:
-            conds.append(f"'Mal satışı hesabatı (Cəm)'[Şöbə] = \"{sobe}\"")
-        if category:
-            conds.append(f"'Mal satışı hesabatı (Cəm)'[Kateqoriya] = \"{category}\"")
-        if conds:
-            return f"CALCULATE({measure}, {', '.join(conds)})"
-        return measure
+        conds.extend(_dim_conds())
+        return f"CALCULATE({measure}, {', '.join(conds)})" if conds else measure
 
     def now_month_flt(measure: str) -> str:
         conds = [
-            f"Calendar1[Year] = YEAR(TODAY())",
-            f"Calendar1[MonthOfYear] = MONTH(TODAY())",
-        ]
-        if anbar:
-            conds.append(f"'Mal satışı hesabatı (Cəm)'[Anbar] = \"{anbar}\"")
-        if sobe:
-            conds.append(f"'Mal satışı hesabatı (Cəm)'[Şöbə] = \"{sobe}\"")
-        if category:
-            conds.append(f"'Mal satışı hesabatı (Cəm)'[Kateqoriya] = \"{category}\"")
+            "Calendar1[Year] = YEAR(TODAY())",
+            "Calendar1[MonthOfYear] = MONTH(TODAY())",
+        ] + _dim_conds()
         return f"CALCULATE({measure}, {', '.join(conds)})"
 
     def prev_month_flt(measure: str) -> str:
         conds = [
-            f"Calendar1[Year] = IF(MONTH(TODAY())=1, YEAR(TODAY())-1, YEAR(TODAY()))",
-            f"Calendar1[MonthOfYear] = IF(MONTH(TODAY())=1, 12, MONTH(TODAY())-1)",
-        ]
-        if anbar:
-            conds.append(f"'Mal satışı hesabatı (Cəm)'[Anbar] = \"{anbar}\"")
-        if sobe:
-            conds.append(f"'Mal satışı hesabatı (Cəm)'[Şöbə] = \"{sobe}\"")
-        if category:
-            conds.append(f"'Mal satışı hesabatı (Cəm)'[Kateqoriya] = \"{category}\"")
+            "Calendar1[Year] = IF(MONTH(TODAY())=1, YEAR(TODAY())-1, YEAR(TODAY()))",
+            "Calendar1[MonthOfYear] = IF(MONTH(TODAY())=1, 12, MONTH(TODAY())-1)",
+        ] + _dim_conds()
         return f"CALCULATE({measure}, {', '.join(conds)})"
 
     def pbi_val(dax_expr: str) -> float:
@@ -638,7 +638,6 @@ async def get_kpi_alerts(
 
     period = "Seçilmiş dövr" if (date_from or date_to) else "Bu ay"
 
-    # KPI dəyərləri
     _T      = "'Mal satışı hesabatı (Cəm)'"
     _SALES  = f"SUM({_T}[Satış Məbləği])"
     _PROFIT = f"SUM({_T}[Gelir])"
@@ -656,13 +655,15 @@ async def get_kpi_alerts(
     vol_now     = pbi_val(now_month_flt(_VOL))
     vol_prev    = pbi_val(prev_month_flt(_VOL))
 
+    margin = round(profit_curr / sales_curr * 100, 1) if sales_curr > 0 else 0.0
+
     return [
         {
-            "id": "total_sales", "label": "Ümumi Satış",
+            "id": "total_sales", "label": "Satış",
             "value": sales_curr, "unit": "₼",
             "change": chg(sales_now, sales_prev),
             "trend": "up" if chg(sales_now, sales_prev) >= 0 else "down",
-            "threshold": 500_000, "alert": sales_curr < 500_000,
+            "threshold": 0, "alert": False,
             "period": period,
         },
         {
@@ -678,10 +679,72 @@ async def get_kpi_alerts(
             "value": profit_curr, "unit": "₼",
             "change": chg(profit_now, profit_prev),
             "trend": "up" if chg(profit_now, profit_prev) >= 0 else "down",
-            "threshold": 50_000, "alert": profit_curr < 50_000,
+            "threshold": 0, "alert": False,
             "period": period,
+            "margin": margin,
         },
     ]
+
+
+@app.get("/api/kpi-trend")
+async def get_kpi_trend(
+    sobe: str = "",
+    category: str = "",
+    mali_tipi: str = "",
+    xususiyyet_qrupu: str = "",
+):
+    """Yanvardan bu ana kimi aylıq trend — Satış, Miqdar, Gəlir."""
+    if not _initialized:
+        return []
+
+    _T = "'Mal satışı hesabatı (Cəm)'"
+
+    flt_conds = [
+        "Calendar1[Year] = YEAR(TODAY())",
+        "Calendar1[MonthOfYear] <= MONTH(TODAY())",
+    ]
+    if sobe:
+        flt_conds.append(f"{_T}[Şöbə] = \"{sobe}\"")
+    if category:
+        flt_conds.append(f"{_T}[Kateqoriya] = \"{category}\"")
+    if mali_tipi:
+        flt_conds.append(f"{_T}[Malın Tipi] = \"{mali_tipi}\"")
+    if xususiyyet_qrupu:
+        flt_conds.append(f"{_T}[Xüsusiyyət Qrupu] = \"{xususiyyet_qrupu}\"")
+
+    filter_str = ", ".join(flt_conds)
+
+    dax = (
+        f"EVALUATE\n"
+        f"ADDCOLUMNS(\n"
+        f"  CALCULATETABLE(\n"
+        f"    SUMMARIZE({_T}, Calendar1[MonthOfYear]),\n"
+        f"    {filter_str}\n"
+        f"  ),\n"
+        f"  \"Satış\", CALCULATE(SUM({_T}[Satış Məbləği])),\n"
+        f"  \"Miqdar\", CALCULATE(SUM({_T}[Miqdar])),\n"
+        f"  \"Gəlir\", CALCULATE(SUM({_T}[Gelir]))\n"
+        f")\n"
+        f"ORDER BY Calendar1[MonthOfYear] ASC"
+    )
+
+    try:
+        df = _pbi.execute_query(dax)
+        if df.empty:
+            return []
+        result = []
+        for _, row in df.iterrows():
+            month_num = int(_safe_float(row.iloc[0]))
+            result.append({
+                "month": month_num,
+                "monthName": _AZ_MONTHS[month_num] if 1 <= month_num <= 12 else str(month_num),
+                "sales": round(_safe_float(row.iloc[1]) if len(row) > 1 else 0.0),
+                "volume": round(_safe_float(row.iloc[2]) if len(row) > 2 else 0.0),
+                "profit": round(_safe_float(row.iloc[3]) if len(row) > 3 else 0.0),
+            })
+        return sorted(result, key=lambda x: x["month"])
+    except Exception:
+        return []
 
 
 @app.get("/api/ml-status")

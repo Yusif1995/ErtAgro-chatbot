@@ -52,7 +52,6 @@ export default function RightPanel({
     }
   }, [])
 
-  // Build dropdown options for a column name (tries different possible column names)
   const getOptions = (possibleNames: string[]): string[] => {
     for (const name of possibleNames) {
       const vals = filterOptions[name]
@@ -61,9 +60,10 @@ export default function RightPanel({
     return []
   }
 
-  const sobeOptions = getOptions(['Şöbə', 'Sobe', 'şöbə'])
-  const anbarOptions = getOptions(['Anbar', 'anbar'])
-  const catOptions = getOptions(['Kateqoriya', 'Məhsul Kateqoriyası', 'Category', 'kateqoriya'])
+  const sobeOptions     = getOptions(['Şöbə', 'Sobe', 'şöbə'])
+  const catOptions      = getOptions(['Kateqoriya', 'Məhsul Kateqoriyası', 'Category', 'kateqoriya'])
+  const tipOptions      = getOptions(['Malın Tipi', 'Tip', 'Mali Tipi'])
+  const xusOptions      = getOptions(['Xüsusiyyət Qrupu', 'Xususiyyet Qrupu'])
 
   const inputCls = "w-full text-xs border border-slate-200 dark:border-slate-600 rounded-lg px-2 py-1.5 text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-700 focus:outline-none focus:border-brand-400 focus:ring-1 focus:ring-brand-100 dark:focus:ring-brand-900"
 
@@ -99,17 +99,24 @@ export default function RightPanel({
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Anbar</label>
-              <select value={filters.anbar || ''} onChange={(e) => handleFilterChange('anbar', e.target.value)} className={inputCls}>
-                <option value="">Bütün anbarlar</option>
-                {anbarOptions.map((v) => <option key={v} value={v}>{v}</option>)}
-              </select>
-            </div>
-            <div>
               <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Məhsul Kateqoriyası</label>
               <select value={filters.category || ''} onChange={(e) => handleFilterChange('category', e.target.value)} className={inputCls}>
                 <option value="">Bütün kateqoriyalar</option>
                 {catOptions.map((v) => <option key={v} value={v}>{v}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Malın Tipi</label>
+              <select value={filters.maliTipi || ''} onChange={(e) => handleFilterChange('maliTipi', e.target.value)} className={inputCls}>
+                <option value="">Bütün tiplər</option>
+                {tipOptions.map((v) => <option key={v} value={v}>{v}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Məhsul Xüsusiyyəti</label>
+              <select value={filters.xususiyyetQrupu || ''} onChange={(e) => handleFilterChange('xususiyyetQrupu', e.target.value)} className={inputCls}>
+                <option value="">Bütün xüsusiyyətlər</option>
+                {xusOptions.map((v) => <option key={v} value={v}>{v}</option>)}
               </select>
             </div>
           </div>

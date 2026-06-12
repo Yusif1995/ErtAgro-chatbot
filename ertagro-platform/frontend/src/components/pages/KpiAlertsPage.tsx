@@ -2,10 +2,14 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import {
-  TrendingUp, TrendingDown, AlertTriangle,
-  DollarSign, Package, Target, BarChart2, Tag, CreditCard,
+  TrendingUp, TrendingDown,
+  DollarSign, Package, BarChart2, Tag, CreditCard,
   Loader2, Send, X, CheckCircle, Mail,
 } from 'lucide-react'
+import {
+  BarChart, Bar, XAxis, YAxis, Tooltip,
+  ResponsiveContainer, LabelList,
+} from 'recharts'
 import type { Filter } from '@/types'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || ''
@@ -20,6 +24,15 @@ interface KpiItem {
   threshold: number
   alert: boolean
   period: string
+  margin?: number
+}
+
+interface TrendPoint {
+  month: number
+  monthName: string
+  sales: number
+  volume: number
+  profit: number
 }
 
 const ICON_MAP: Record<string, React.ElementType> = {
@@ -27,20 +40,11 @@ const ICON_MAP: Record<string, React.ElementType> = {
   total_volume: Package,
   profit: TrendingUp,
   avg_price: Tag,
-  low_stock: AlertTriangle,
   cashback: CreditCard,
 }
 
-function formatValue(value: number, unit: string): string {
-  if (unit === '₼' || unit === 'kq') {
-    const v = Math.abs(value)
-    if (v >= 1_000_000) return `${(value / 1_000_000).toFixed(2)}M`
-    if (v >= 1_000) return `${(value / 1_000).toFixed(1)}K`
-    return value.toLocaleString('az-AZ', { maximumFractionDigits: 2 })
-  }
-  if (unit === '₼/kq') return value.toFixed(2)
-  if (unit === 'mal') return Math.round(value).toString()
-  return value.toLocaleString()
+function formatValue(value: number): string {
+  return Math.round(value).toLocaleString('az-AZ')
 }
 
 // Email modal
@@ -60,9 +64,10 @@ function EmailModal({
   const [err, setErr] = useState('')
 
   const filtersInfo = [
-    filters.anbar && `Anbar: ${filters.anbar}`,
     filters.sobe && `Şöbə: ${filters.sobe}`,
     filters.category && `Kateqoriya: ${filters.category}`,
+    filters.maliTipi && `Malın Tipi: ${filters.maliTipi}`,
+    filters.xususiyyetQrupu && `Xüsusiyyət: ${filters.xususiyyetQrupu}`,
     filters.dateFrom && `Başlanğıc: ${filters.dateFrom}`,
     filters.dateTo && `Son: ${filters.dateTo}`,
   ].filter(Boolean).join(' | ')
@@ -79,7 +84,7 @@ function EmailModal({
         body: JSON.stringify({
           to_email: toEmail.trim(),
           kpi_label: kpi.label,
-          kpi_value: formatValue(kpi.value, kpi.unit),
+          kpi_value: formatValue(kpi.value),
           kpi_unit: kpi.unit,
           kpi_change: kpi.change,
           kpi_trend: kpi.trend,
@@ -119,11 +124,10 @@ function EmailModal({
           </button>
         </div>
 
-        {/* KPI preview */}
         <div className="bg-brand-50 border border-brand-100 rounded-xl p-3 mb-4">
           <p className="text-xs text-slate-500 mb-1">{kpi.label}</p>
           <p className="text-xl font-bold text-slate-800">
-            {formatValue(kpi.value, kpi.unit)}
+            {formatValue(kpi.value)}
             <span className="text-sm font-medium text-slate-400 ml-1">{kpi.unit}</span>
           </p>
           <p className={`text-xs font-semibold mt-1 ${kpi.trend === 'up' ? 'text-brand-600' : 'text-red-500'}`}>
@@ -195,64 +199,42 @@ function KpiCard({
 }) {
   const Icon = ICON_MAP[kpi.id] || BarChart2
   const isUp = kpi.trend === 'up'
-  const isAlert = kpi.alert
+  const isProfit = kpi.id === 'profit'
 
   return (
-    <div className={`rounded-2xl p-5 shadow-card border transition-all ${
-      isAlert
-        ? 'border-red-200 dark:border-red-800 bg-red-50/30 dark:bg-red-900/10'
-        : 'bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 hover:border-slate-200 dark:hover:border-slate-600'
-    }`}>
+    <div className="rounded-2xl p-5 shadow-card border bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 hover:border-slate-200 dark:hover:border-slate-600 transition-all">
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center gap-2.5">
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-            isAlert ? 'bg-red-100 dark:bg-red-900/30' : 'bg-brand-50 dark:bg-brand-900/30'
-          }`}>
-            {isAlert
-              ? <AlertTriangle size={18} className="text-red-500" />
-              : <Icon size={18} className="text-brand-600 dark:text-brand-400" />
-            }
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-brand-50 dark:bg-brand-900/30">
+            <Icon size={18} className="text-brand-600 dark:text-brand-400" />
           </div>
           <div>
             <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{kpi.label}</p>
-            {isAlert
-              ? <span className="text-xs font-semibold text-red-500">⚠ Hədd aşıldı</span>
-              : <span className="text-xs text-slate-400 dark:text-slate-500">{kpi.period}</span>
-            }
+            <span className="text-xs text-slate-400 dark:text-slate-500">{kpi.period}</span>
           </div>
         </div>
-        <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold ${
-          isUp
-            ? 'bg-brand-50 dark:bg-brand-900/40 text-brand-700 dark:text-brand-400'
-            : 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400'
-        }`}>
-          {isUp ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
-          {kpi.change > 0 ? '+' : ''}{kpi.change}%
-        </div>
-      </div>
-
-      <div className="mb-3">
-        <p className="text-2xl font-bold text-slate-800 dark:text-slate-100">
-          {formatValue(kpi.value, kpi.unit)}
-          <span className="text-sm font-medium text-slate-400 dark:text-slate-500 ml-1">{kpi.unit}</span>
-        </p>
-        {kpi.threshold > 0 && (
-          <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
-            Hədd: {formatValue(kpi.threshold, kpi.unit)} {kpi.unit}
-          </p>
+        {isProfit ? (
+          <div className="px-2 py-1 rounded-full text-xs font-semibold bg-brand-50 dark:bg-brand-900/40 text-brand-700 dark:text-brand-400">
+            {kpi.margin != null ? `${kpi.margin.toFixed(1)}% marja` : '—'}
+          </div>
+        ) : (
+          <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold ${
+            isUp
+              ? 'bg-brand-50 dark:bg-brand-900/40 text-brand-700 dark:text-brand-400'
+              : 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400'
+          }`}>
+            {isUp ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
+            {kpi.change > 0 ? '+' : ''}{kpi.change}%
+          </div>
         )}
       </div>
 
-      {kpi.threshold > 0 && (
-        <div className="mb-3">
-          <div className="h-1.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
-            <div
-              className={`h-full rounded-full transition-all ${isAlert ? 'bg-red-400' : 'bg-brand-500'}`}
-              style={{ width: `${Math.min(100, (kpi.value / (kpi.threshold * 1.5)) * 100)}%` }}
-            />
-          </div>
-        </div>
-      )}
+      <div className="mb-4">
+        <p className="text-2xl font-bold text-slate-800 dark:text-slate-100">
+          {formatValue(kpi.value)}
+          <span className="text-sm font-medium text-slate-400 dark:text-slate-500 ml-1">{kpi.unit}</span>
+        </p>
+      </div>
 
       <button
         onClick={() => onShare(kpi)}
@@ -261,6 +243,88 @@ function KpiCard({
         <Mail size={11} />
         Email ilə paylaş
       </button>
+    </div>
+  )
+}
+
+// Trend chart configs
+const TREND_CONFIGS = [
+  { key: 'sales',  label: 'Satış',          unit: '₼',  color: '#6366f1' },
+  { key: 'volume', label: 'Satış Miqdarı',  unit: 'kq', color: '#10b981' },
+  { key: 'profit', label: 'Gəlir',          unit: '₼',  color: '#8b5cf6' },
+] as const
+
+function TrendCharts({ filters }: { filters: Filter }) {
+  const [data, setData] = useState<TrendPoint[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    setLoading(true)
+    const params = new URLSearchParams()
+    if (filters.sobe)             params.set('sobe', filters.sobe)
+    if (filters.category)         params.set('category', filters.category)
+    if (filters.maliTipi)         params.set('mali_tipi', filters.maliTipi)
+    if (filters.xususiyyetQrupu)  params.set('xususiyyet_qrupu', filters.xususiyyetQrupu)
+
+    fetch(`${API_BASE}/api/kpi-trend?${params}`)
+      .then(r => r.json())
+      .then(d => setData(Array.isArray(d) ? d : []))
+      .catch(() => setData([]))
+      .finally(() => setLoading(false))
+  }, [filters])
+
+  if (loading) {
+    return (
+      <div className="flex justify-center py-8">
+        <Loader2 size={20} className="text-brand-600 animate-spin" />
+      </div>
+    )
+  }
+  if (data.length === 0) return null
+
+  const fmt = (v: unknown) => Math.round(Number(v)).toLocaleString('az-AZ')
+
+  return (
+    <div className="space-y-4 mt-4">
+      {TREND_CONFIGS.map(cfg => (
+        <div
+          key={cfg.key}
+          className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-card p-4"
+        >
+          <h3 className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">
+            {cfg.label} — Aylıq Trend ({cfg.unit})
+          </h3>
+          <ResponsiveContainer width="100%" height={170}>
+            <BarChart data={data} margin={{ top: 18, right: 8, bottom: 0, left: 8 }}>
+              <XAxis
+                dataKey="monthName"
+                tick={{ fontSize: 11, fill: '#94a3b8' }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <YAxis hide />
+              <Tooltip
+                formatter={(v: number) => [fmt(v), cfg.label]}
+                contentStyle={{
+                  fontSize: 12,
+                  borderRadius: 8,
+                  border: '1px solid #e2e8f0',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+                }}
+                labelStyle={{ fontWeight: 600, color: '#334155' }}
+              />
+              <Bar dataKey={cfg.key} fill={cfg.color} radius={[4, 4, 0, 0]} maxBarSize={56}>
+                <LabelList
+                  dataKey={cfg.key}
+                  position="top"
+                  style={{ fontSize: 9, fill: '#64748b' }}
+                  formatter={fmt}
+                />
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      ))}
     </div>
   )
 }
@@ -278,11 +342,12 @@ export default function KpiAlertsPage({ filters = {} }: KpiAlertsPageProps) {
     setLoading(true)
     try {
       const params = new URLSearchParams()
-      if (f.dateFrom)  params.set('date_from', f.dateFrom)
-      if (f.dateTo)    params.set('date_to', f.dateTo)
-      if (f.anbar)     params.set('anbar', f.anbar)
-      if (f.sobe)      params.set('sobe', f.sobe)
-      if (f.category)  params.set('category', f.category)
+      if (f.dateFrom)           params.set('date_from', f.dateFrom)
+      if (f.dateTo)             params.set('date_to', f.dateTo)
+      if (f.sobe)               params.set('sobe', f.sobe)
+      if (f.category)           params.set('category', f.category)
+      if (f.maliTipi)           params.set('mali_tipi', f.maliTipi)
+      if (f.xususiyyetQrupu)    params.set('xususiyyet_qrupu', f.xususiyyetQrupu)
       const res = await fetch(`${API_BASE}/api/kpi-alerts?${params}`)
       const data = await res.json()
       setKpis(Array.isArray(data) ? data : [])
@@ -299,7 +364,14 @@ export default function KpiAlertsPage({ filters = {} }: KpiAlertsPageProps) {
 
   const SHOW_IDS = ['total_sales', 'total_volume', 'profit']
   const displayKpis = kpis.filter(k => SHOW_IDS.includes(k.id))
-  const alertCount = displayKpis.filter(k => k.alert).length
+
+  const activeFilters = [
+    filters.sobe,
+    filters.category,
+    filters.maliTipi,
+    filters.xususiyyetQrupu,
+    filters.dateFrom && `${filters.dateFrom}${filters.dateTo ? ' → ' + filters.dateTo : ''}`,
+  ].filter(Boolean) as string[]
 
   return (
     <div className="flex flex-col flex-1 min-h-0 overflow-y-auto bg-surface-2 dark:bg-slate-900 p-6">
@@ -316,21 +388,16 @@ export default function KpiAlertsPage({ filters = {} }: KpiAlertsPageProps) {
         <div>
           <h2 className="text-base font-semibold text-slate-800 dark:text-slate-100">KPI Monitorinq</h2>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            {loading ? 'Yüklənir...' : alertCount > 0
-              ? <span className="text-red-500 font-medium">{alertCount} KPI hədd aşmışdır</span>
-              : 'Bütün KPI-lar normal səviyyədədir'
-            }
+            {loading ? 'Yüklənir...' : 'Bütün KPI-lar normal səviyyədədir'}
           </p>
         </div>
-        {(filters.anbar || filters.sobe || filters.category || filters.dateFrom) && (
+        {activeFilters.length > 0 && (
           <div className="flex flex-wrap gap-1.5">
-            {[filters.anbar, filters.sobe, filters.category, filters.dateFrom && `${filters.dateFrom}${filters.dateTo ? ' → ' + filters.dateTo : ''}`]
-              .filter(Boolean)
-              .map((v, i) => (
-                <span key={i} className="px-2 py-1 bg-brand-50 dark:bg-brand-900/30 text-brand-700 dark:text-brand-400 text-xs font-medium rounded-full border border-brand-100 dark:border-brand-800">
-                  {v}
-                </span>
-              ))}
+            {activeFilters.map((v, i) => (
+              <span key={i} className="px-2 py-1 bg-brand-50 dark:bg-brand-900/30 text-brand-700 dark:text-brand-400 text-xs font-medium rounded-full border border-brand-100 dark:border-brand-800">
+                {v}
+              </span>
+            ))}
           </div>
         )}
       </div>
@@ -340,11 +407,14 @@ export default function KpiAlertsPage({ filters = {} }: KpiAlertsPageProps) {
           <Loader2 size={24} className="text-brand-600 animate-spin" />
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {displayKpis.map(kpi => (
-            <KpiCard key={kpi.id} kpi={kpi} onShare={setShareKpi} />
-          ))}
-        </div>
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {displayKpis.map(kpi => (
+              <KpiCard key={kpi.id} kpi={kpi} onShare={setShareKpi} />
+            ))}
+          </div>
+          <TrendCharts filters={filters} />
+        </>
       )}
     </div>
   )

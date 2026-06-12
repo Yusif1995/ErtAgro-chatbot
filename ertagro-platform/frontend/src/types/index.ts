@@ -81,8 +81,9 @@ export interface Filter {
   dateFrom?: string
   dateTo?: string
   sobe?: string
-  anbar?: string
   category?: string
+  maliTipi?: string
+  xususiyyetQrupu?: string
 }
 
 export interface SuggestedQuestion {

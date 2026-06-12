@@ -371,13 +371,25 @@ async def chat(req: ChatRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"DAX yarada bilmədim: {e}")
 
-    # Step 2: DAX → Data
-    try:
-        df = _pbi.execute_query(dax)
-        _query_memory.record_success(req.question, dax, _pbi.dataset_id or "")
-    except Exception as e:
-        _query_memory.record_failure(req.question, dax, str(e), _pbi.dataset_id or "")
-        raise HTTPException(status_code=500, detail=f"Power BI xətası: {e}")
+    # Step 2: DAX → Data (xəta olarsa auto-retry)
+    df = None
+    last_pbi_error = ""
+    for attempt in range(2):
+        try:
+            df = _pbi.execute_query(dax)
+            _query_memory.record_success(req.question, dax, _pbi.dataset_id or "")
+            break
+        except Exception as e:
+            last_pbi_error = str(e)
+            _query_memory.record_failure(req.question, dax, last_pbi_error, _pbi.dataset_id or "")
+            if attempt == 0:
+                try:
+                    dax, _ = _llm.fix_dax(dax, last_pbi_error, schema)
+                except Exception:
+                    break
+
+    if df is None:
+        raise HTTPException(status_code=500, detail=f"Power BI xətası: {last_pbi_error}")
 
     # Step 3: Data → Answer
     try:
@@ -528,24 +540,7 @@ async def get_insights():
     if not _initialized:
         return insights
 
-    queries = [
-        (
-            "top_sobe",
-            "EVALUATE TOPN(1, SUMMARIZE(FILTER(ALL('Satış'),'Satış'[Şöbə]<>BLANK()),\
-'Satış'[Şöbə],\"Satış\",[Ümumi Satış]),[Satış],DESC)",
-            "top_region",
-        ),
-        (
-            "low_stock",
-            "EVALUATE TOPN(1, SUMMARIZE(FILTER(ALL('Satış'),'Satış'[Kateqoriya]<>BLANK()),\
-'Satış'[Kateqoriya],\"Stok\",[Stok Miqdarı]),[Stok],ASC)",
-            "low_stock",
-        ),
-    ]
-
-    from datetime import datetime, timedelta
     now = datetime.now()
-    m_start = now.replace(day=1).strftime("%Y-%m-%d")
 
     try:
         df_sales = _pbi.execute_query(

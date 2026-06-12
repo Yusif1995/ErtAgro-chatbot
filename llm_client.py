@@ -326,6 +326,25 @@ class LLMClient:
             sql = "\n".join(lines[1:-1] if lines[-1].startswith("```") else lines[1:])
         return sql.strip(), cost
 
+    def fix_dax(self, original_dax: str, error: str, schema: str) -> tuple:
+        """Xətalı DAX-ı düzəldir — xətanı göndərib düzgün versiyanı alır."""
+        user = (
+            f"SCHEMA:\n{schema}\n\n"
+            f"XƏTALІ DAX:\n{original_dax}\n\n"
+            f"XƏTA:\n{error}\n\n"
+            "DÜZƏLTMƏ QAYDALARI:\n"
+            "- ROW() və ya aggregasiyada sütunu heç vaxt birbaşa istifadə etmə → SUM(table[col]) yaz\n"
+            "- SUMMARIZE əvəzinə SUMMARIZECOLUMNS istifadə et\n"
+            "- TOPN() içindəki cədvəldə sütun reference yox, SUM() olan expression olmalıdır\n"
+            "Yalnız düzəlmiş DAX qaytar, başqa heç nə."
+        )
+        dax, cost = self._chat(DAX_SYSTEM, user, temperature=0.1, max_tokens=1000)
+        if dax.startswith("```"):
+            lines = dax.split("\n")
+            dax = "\n".join(lines[1:-1] if lines[-1].startswith("```") else lines[1:])
+        dax = _fix_table_quotes(dax.strip(), schema)
+        return dax, cost
+
     def fix_sql(self, original_sql: str, error: str, schema: str) -> tuple:
         """Xətalı SQL-i düzəldir — xəta mesajını göndərib düzgün versiyanı alır."""
         user = (

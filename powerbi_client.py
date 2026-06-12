@@ -262,14 +262,20 @@ class PowerBIClient:
         return name.startswith("RowNumber-")
 
     def _format_schema_from_view(self, table_names, columns_df, measures_df):
+        _NUMERIC = {"int64", "double", "decimal", "currency", "integer", "int32", "int16"}
+
         lines = []
-        col_table_key = col_name_key = col_type_key = None
+        dax_numeric: list = []   # SUM() üçün
+        dax_text: list = []       # FILTER/GROUPBY üçün
+
+        col_table_key = col_name_key = col_type_key = col_hidden_key = None
         if columns_df is not None and not columns_df.empty:
             for c in columns_df.columns:
                 lc = c.lower()
-                if lc == "table": col_table_key = c
-                elif lc == "name": col_name_key = c
+                if lc == "table":              col_table_key = c
+                elif lc == "name":             col_name_key = c
                 elif lc in ("datatype", "data type"): col_type_key = c
+                elif lc == "ishidden":         col_hidden_key = c
 
         for tname in sorted(table_names):
             if self._is_internal_table(tname):
@@ -278,23 +284,55 @@ class PowerBIClient:
             if columns_df is not None and col_table_key and col_name_key:
                 tbl_cols = columns_df[columns_df[col_table_key] == tname]
                 for _, c in tbl_cols.iterrows():
-                    if self._is_internal_column(str(c[col_name_key])):
+                    cname = str(c[col_name_key])
+                    if self._is_internal_column(cname):
                         continue
-                    dtype = c[col_type_key] if col_type_key else "?"
-                    col_lines.append(f"  - {c[col_name_key]} ({dtype})")
+                    if col_hidden_key and c.get(col_hidden_key) is True:
+                        continue
+                    dtype = str(c[col_type_key]) if col_type_key else "?"
+                    col_lines.append(f"  - {cname} ({dtype})")
+                    # DAX reference — boşluqlu cədvəl adı tək dırnaqla
+                    ref = f"'{tname}'[{cname}]" if " " in tname or "(" in tname else f"{tname}[{cname}]"
+                    if dtype.lower() in _NUMERIC:
+                        dax_numeric.append(ref)
+                    elif dtype.lower() == "text":
+                        dax_text.append(ref)
             if col_lines:
                 lines.append(f"{tname} (cədvəl):")
                 lines.extend(col_lines)
                 lines.append("")
 
-        if measures_df is not None and not measures_df.empty:
+        has_measures = measures_df is not None and not measures_df.empty
+        if has_measures:
             lines.append("Measures:")
             m_table_key = next((c for c in measures_df.columns if c.lower() == "table"), None)
             m_name_key = next((c for c in measures_df.columns if c.lower() == "name"), None)
             if m_name_key:
                 for _, m in measures_df.iterrows():
-                    tname = m[m_table_key] if m_table_key else "?"
-                    lines.append(f"  - [{m[m_name_key]}]  (table: {tname})")
+                    mt = m[m_table_key] if m_table_key else "?"
+                    lines.append(f"  - [{m[m_name_key]}]  (table: {mt})")
+
+        # DAX Quick Reference bölməsini ön hissəyə əlavə et
+        hint_lines: list = []
+        if dax_numeric:
+            hint_lines.append("=== RƏQƏM SÜTUNLARI — SUM/AVG/MAX/MIN istifadə et (heç vaxt [MeasureAdı] yox) ===")
+            for ref in dax_numeric[:30]:
+                hint_lines.append(f"  SUM({ref})")
+            hint_lines.append("")
+        if dax_text:
+            hint_lines.append("=== MƏTN SÜTUNLARI — FILTER / SUMMARIZECOLUMNS üçün ===")
+            for ref in dax_text[:30]:
+                hint_lines.append(f"  {ref}")
+            hint_lines.append("")
+        if not has_measures:
+            hint_lines.insert(0, "⚠️  Bu datasetdə adlandırılmış MEASURE YOXDUR — yalnız sütun aggregasiyaları istifadə et.\n")
+
+        if hint_lines:
+            return (
+                "\n".join(hint_lines)
+                + "\n=== ƏTRAFLİ SCHEMA ===\n\n"
+                + "\n".join(lines)
+            )
         return "\n".join(lines)
 
     def _format_schema_with_map(self, table_map, columns_df, measures_df):

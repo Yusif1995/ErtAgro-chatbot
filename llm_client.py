@@ -240,8 +240,20 @@ class LLMClient:
         user = f"Schema (əsas cədvəllər):\n{schema[:2000]}\n\nSual: {question}"
         return self._chat(ADVICE_SYSTEM, user, temperature=0.5, max_tokens=400)
 
-    def nl_to_dax(self, question: str, schema: str, history: list = None):
+    def nl_to_dax(self, question: str, schema: str, history: list = None,
+                  memory_examples: list = None):
         schema_block = schema.strip() if schema else "(schema yoxdur)"
+
+        # Query memory-dən öyrənilmiş nümunələr
+        examples_block = ""
+        if memory_examples:
+            lines = ["ÖYRƏNILMIŞ NÜMUNƏLƏR (bu dataset-dən əvvəllər uğurla işləmiş sorğular):"]
+            for ex in memory_examples:
+                lines.append(f'Sual: "{ex["question"]}"')
+                lines.append(f'DAX: {ex["dax"]}')
+                lines.append("")
+            examples_block = "\n".join(lines) + "\n\n"
+
         history_msgs = []
         if history:
             for msg in history[-6:]:
@@ -255,7 +267,11 @@ class LLMClient:
 
         history_msgs.append({
             "role": "user",
-            "content": f"SCHEMA:\n{schema_block}\n\nSUAL: {question}\n\nYalnız DAX qaytar."
+            "content": (
+                f"SCHEMA:\n{schema_block}\n\n"
+                f"{examples_block}"
+                f"SUAL: {question}\n\nYalnız DAX qaytar."
+            ),
         })
 
         dax, cost = self._chat_with_history(DAX_SYSTEM, history_msgs, temperature=0.1, max_tokens=1000)

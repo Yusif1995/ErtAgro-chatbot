@@ -21,6 +21,7 @@ from config import load_config
 from cost_tracker import aggregate_costs
 from llm_client import LLMClient
 from powerbi_client import PowerBIClient
+from query_memory import QueryMemory
 from sql_client import SQLClient
 from context_builder import ContextBuilder
 from ml_model import SalesForecastModel, init_model, retrain
@@ -45,6 +46,7 @@ _init_error: str = ""
 _schema_cache: Dict[str, str] = {}
 _sql_schema_cache: Dict[str, str] = {}
 _ml_model: SalesForecastModel = SalesForecastModel()
+_query_memory: QueryMemory = QueryMemory()
 
 try:
     _cfg = load_config()
@@ -356,16 +358,25 @@ async def chat(req: ChatRequest):
     # Schema
     schema = _get_schema(_pbi.workspace_id or "", _pbi.dataset_id or "")
 
+    # Oxşar keçmiş uğurlu sorğuları tap (few-shot üçün)
+    mem_examples = _query_memory.similar(req.question, _pbi.dataset_id or "")
+
     # Step 1: NL → DAX
     try:
-        dax, _ = _llm.nl_to_dax(question=req.question, schema=schema)
+        dax, _ = _llm.nl_to_dax(
+            question=req.question,
+            schema=schema,
+            memory_examples=mem_examples or None,
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"DAX yarada bilmədim: {e}")
 
     # Step 2: DAX → Data
     try:
         df = _pbi.execute_query(dax)
+        _query_memory.record_success(req.question, dax, _pbi.dataset_id or "")
     except Exception as e:
+        _query_memory.record_failure(req.question, dax, str(e), _pbi.dataset_id or "")
         raise HTTPException(status_code=500, detail=f"Power BI xətası: {e}")
 
     # Step 3: Data → Answer
@@ -422,6 +433,12 @@ async def chat(req: ChatRequest):
         "confidence": 95,
         "timestamp": pd.Timestamp.now().isoformat(),
     }
+
+
+@app.get("/api/query-memory/stats")
+async def query_memory_stats():
+    """Query memory statistikası — neçə sorğu öyrənilib."""
+    return {**_query_memory.stats(), "recent": _query_memory.recent(10)}
 
 
 @app.post("/api/refresh")

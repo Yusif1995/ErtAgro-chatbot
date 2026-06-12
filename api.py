@@ -525,9 +525,16 @@ async def get_filter_values():
     ]
     for col_name, pbi_col in col_map:
         try:
-            df = _pbi.execute_query(
-                f"EVALUATE TOPN(200, DISTINCT({pbi_col}), {pbi_col}, ASC)"
-            )
+            if col_name == "Xüsusiyyət Qrupu":
+                q = (
+                    "EVALUATE SUMMARIZE(Dim_Mal, "
+                    "Dim_Mal[Xüsusiyyət Qrupu], "
+                    "Dim_Mal[Xüsusiyyət Qrupu Sıra]) "
+                    "ORDER BY Dim_Mal[Xüsusiyyət Qrupu Sıra] ASC"
+                )
+            else:
+                q = f"EVALUATE TOPN(200, DISTINCT({pbi_col}), {pbi_col}, ASC)"
+            df = _pbi.execute_query(q)
             if not df.empty:
                 vals = df.iloc[:, 0].dropna().astype(str).tolist()
                 if vals:
@@ -749,11 +756,8 @@ async def get_kpi_trend(
         try:
             _day_from = _dc.fromisoformat(date_from).day
             _day_to   = _dc.fromisoformat(date_to).day
-            flt_conds.append(
-                f"FILTER(ALL(Calendar1), "
-                f"DAY(Calendar1[Date]) >= {_day_from} && "
-                f"DAY(Calendar1[Date]) <= {_day_to})"
-            )
+            flt_conds.append(f"Calendar1[DayOfMonth] >= {_day_from}")
+            flt_conds.append(f"Calendar1[DayOfMonth] <= {_day_to}")
         except Exception:
             pass
 
@@ -761,14 +765,14 @@ async def get_kpi_trend(
 
     dax = (
         f"EVALUATE\n"
-        f"ADDCOLUMNS(\n"
-        f"  CALCULATETABLE(\n"
+        f"CALCULATETABLE(\n"
+        f"  ADDCOLUMNS(\n"
         f"    SUMMARIZE({_T}, Calendar1[MonthOfYear]),\n"
-        f"    {filter_str}\n"
+        f"    \"Satış\", CALCULATE(SUM({_T}[Satış Məbləği])),\n"
+        f"    \"Miqdar\", CALCULATE(SUM({_T}[Miqdar])),\n"
+        f"    \"Gəlir\", CALCULATE(SUM({_T}[Gelir]))\n"
         f"  ),\n"
-        f"  \"Satış\", CALCULATE(SUM({_T}[Satış Məbləği])),\n"
-        f"  \"Miqdar\", CALCULATE(SUM({_T}[Miqdar])),\n"
-        f"  \"Gəlir\", CALCULATE(SUM({_T}[Gelir]))\n"
+        f"  {filter_str}\n"
         f")\n"
         f"ORDER BY Calendar1[MonthOfYear] ASC"
     )

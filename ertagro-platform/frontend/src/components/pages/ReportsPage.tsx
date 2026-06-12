@@ -3,7 +3,7 @@
 import { ExternalLink, RefreshCw, Maximize2 } from 'lucide-react'
 
 const REPORT_URL =
-  'https://app.powerbi.com/reportEmbed?reportId=e2d90cc1-1255-4ae7-b90b-4c2b4da83f7d&autoAuth=true&ctid=48111fed-faef-48ea-ab8a-8cc1a354fc76'
+  'https://app.powerbi.com/reportEmbed?reportId=18e0818f-5f4a-464b-9934-942699bc2442&autoAuth=true&ctid=48111fed-faef-48ea-ab8a-8cc1a354fc76'
 
 export default function ReportsPage() {
   return (

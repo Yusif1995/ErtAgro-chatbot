@@ -134,6 +134,8 @@ class ChatRequest(BaseModel):
     filters: Optional[Dict[str, Any]] = {}
     workspace_id: Optional[str] = None
     dataset_id: Optional[str] = None
+    history: Optional[List[Dict[str, str]]] = []
+
 
 
 class ForecastRequest(BaseModel):
@@ -238,39 +240,89 @@ async def test_connections():
 @app.post("/api/tts")
 async def text_to_speech(body: TTSRequest):
     import os
-    from openai import OpenAI
-    api_key = os.environ.get("OPENAI_API_KEY", "")
-    if not api_key:
-        raise HTTPException(status_code=500, detail="OPENAI_API_KEY tapılmadı")
-    try:
-        client = OpenAI(api_key=api_key)
-        audio = client.audio.speech.create(
-            model="gpt-4o-mini-tts",
-            voice=body.voice,
-            input=body.text[:4096],
-        )
-        return Response(content=audio.content, media_type="audio/mpeg")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"TTS xətası: {e}")
+    from openai import OpenAI, AzureOpenAI
+    
+    # Try standard OpenAI first
+    api_key = os.environ.get("OPENAI_API_KEY", "").strip()
+    if api_key:
+        try:
+            client = OpenAI(api_key=api_key)
+            audio = client.audio.speech.create(
+                model="tts-1",
+                voice=body.voice,
+                input=body.text[:4096],
+            )
+            return Response(content=audio.content, media_type="audio/mpeg")
+        except Exception:
+            pass
+
+    # Try Azure OpenAI fallback
+    azure_key = os.environ.get("AZURE_OPENAI_API_KEY", "").strip()
+    azure_endpoint = os.environ.get("AZURE_OPENAI_ENDPOINT", "").strip()
+    azure_tts_deployment = os.environ.get("AZURE_OPENAI_TTS_DEPLOYMENT", "tts").strip()
+    azure_api_version = os.environ.get("AZURE_OPENAI_API_VERSION", "2024-10-21").strip()
+
+    if azure_key and azure_endpoint:
+        try:
+            client = AzureOpenAI(
+                api_key=azure_key,
+                azure_endpoint=azure_endpoint,
+                api_version=azure_api_version,
+            )
+            audio = client.audio.speech.create(
+                model=azure_tts_deployment,
+                voice=body.voice,
+                input=body.text[:4096],
+            )
+            return Response(content=audio.content, media_type="audio/mpeg")
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"TTS xətası (Azure): {e}")
+
+    raise HTTPException(status_code=500, detail="Heç bir OpenAI və ya Azure OpenAI API açarı tapılmadı")
 
 
 @app.post("/api/stt")
 async def speech_to_text(audio: UploadFile = File(...)):
     import os
-    from openai import OpenAI
-    api_key = os.environ.get("OPENAI_API_KEY", "")
-    if not api_key:
-        raise HTTPException(status_code=500, detail="OPENAI_API_KEY tapılmadı")
-    try:
-        client = OpenAI(api_key=api_key)
-        audio_bytes = await audio.read()
-        transcript = client.audio.transcriptions.create(
-            model="whisper-1",
-            file=(audio.filename or "audio.webm", audio_bytes, audio.content_type or "audio/webm"),
-        )
-        return {"text": transcript.text}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"STT xətası: {e}")
+    from openai import OpenAI, AzureOpenAI
+
+    audio_bytes = await audio.read()
+
+    # Try standard OpenAI first
+    api_key = os.environ.get("OPENAI_API_KEY", "").strip()
+    if api_key:
+        try:
+            client = OpenAI(api_key=api_key)
+            transcript = client.audio.transcriptions.create(
+                model="whisper-1",
+                file=(audio.filename or "audio.webm", audio_bytes, audio.content_type or "audio/webm"),
+            )
+            return {"text": transcript.text}
+        except Exception:
+            pass
+
+    # Try Azure OpenAI fallback
+    azure_key = os.environ.get("AZURE_OPENAI_API_KEY", "").strip()
+    azure_endpoint = os.environ.get("AZURE_OPENAI_ENDPOINT", "").strip()
+    azure_stt_deployment = os.environ.get("AZURE_OPENAI_STT_DEPLOYMENT", "whisper").strip()
+    azure_api_version = os.environ.get("AZURE_OPENAI_API_VERSION", "2024-10-21").strip()
+
+    if azure_key and azure_endpoint:
+        try:
+            client = AzureOpenAI(
+                api_key=azure_key,
+                azure_endpoint=azure_endpoint,
+                api_version=azure_api_version,
+            )
+            transcript = client.audio.transcriptions.create(
+                model=azure_stt_deployment,
+                file=(audio.filename or "audio.webm", audio_bytes, audio.content_type or "audio/webm"),
+            )
+            return {"text": transcript.text}
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"STT xətası (Azure): {e}")
+
+    raise HTTPException(status_code=500, detail="Heç bir OpenAI və ya Azure OpenAI API açarı tapılmadı")
 
 
 @app.get("/api/datasets")
@@ -344,8 +396,51 @@ async def refresh_status():
                 "last_refresh": "-", "next_refresh": "-"}
 
 
+def _get_filter_values_data() -> dict:
+    if not _initialized or not _pbi:
+        return {}
+    result = {}
+    col_map = [
+        ("Şöbə",              "'Mal satışı hesabatı (Cəm)'[Şöbə]"),
+        ("Kateqoriya",        "'Mal satışı hesabatı (Cəm)'[Kateqoriya]"),
+        ("Malın Tipi",        "'Mal satışı hesabatı (Cəm)'[Tipi]"),
+        ("Xüsusiyyət Qrupu",  "'Dim_Mal'[Xüsusiyyət Qrupu]"),
+    ]
+    try:
+        for col_name, pbi_col in col_map:
+            key = f"fv_cache:{col_name}"
+            if key not in _schema_cache:
+                if col_name == "Xüsusiyyət Qrupu":
+                    q = (
+                        "EVALUATE SUMMARIZE(Dim_Mal, "
+                        "Dim_Mal[Xüsusiyyət Qrupu], "
+                        "Dim_Mal[Xüsusiyyət Qrupu Sıra]) "
+                        "ORDER BY Dim_Mal[Xüsusiyyət Qrupu Sıra] ASC"
+                    )
+                else:
+                    q = f"EVALUATE TOPN(200, DISTINCT({pbi_col}), {pbi_col}, ASC)"
+                df = _pbi.execute_query(q)
+                if not df.empty:
+                    _schema_cache[key] = df.iloc[:, 0].dropna().astype(str).tolist()
+            if key in _schema_cache:
+                result[col_name] = _schema_cache[key]
+
+        m_key = "fv_cache:Mal_adlari"
+        if m_key not in _schema_cache:
+            q = "EVALUATE TOPN(150, DISTINCT('Mal satışı hesabatı (Cəm)'[Malın adı]), 'Mal satışı hesabatı (Cəm)'[Malın adı], ASC)"
+            df = _pbi.execute_query(q)
+            if not df.empty:
+                _schema_cache[m_key] = df.iloc[:, 0].dropna().astype(str).tolist()
+        if m_key in _schema_cache:
+            result["Malın adı"] = _schema_cache[m_key]
+    except Exception:
+        pass
+    return result
+
+
 @app.post("/api/chat")
 async def chat(req: ChatRequest):
+
     if not _initialized:
         raise HTTPException(status_code=503, detail=_init_error or "Xidmət başlatılmayıb")
 
@@ -361,6 +456,24 @@ async def chat(req: ChatRequest):
     # Schema
     schema = _get_schema(_pbi.workspace_id or "", _pbi.dataset_id or "")
 
+    # Clarification Check
+    filter_data = _get_filter_values_data()
+    clarify_res = _llm.check_clarification(req.question, filter_data)
+    if clarify_res.get("clarification_needed"):
+        return {
+            "answer": clarify_res.get("message", "Zəhmət olmasa seçimlərdən birini təsdiqləyin:"),
+            "status": "clarification_needed",
+            "suggestions": clarify_res.get("suggestions", []),
+            "chart": None,
+            "metrics": [],
+            "rows": [],
+            "row_count": 0,
+            "source": "ErtAgro AI Preprocessor",
+            "model": _cfg.get("AZURE_OPENAI_DEPLOYMENT", "GPT-4o"),
+            "confidence": 100,
+            "timestamp": pd.Timestamp.now().isoformat(),
+        }
+
     # Oxşar keçmiş uğurlu sorğuları tap (few-shot üçün)
     mem_examples = _query_memory.similar(req.question, _pbi.dataset_id or "")
 
@@ -369,8 +482,10 @@ async def chat(req: ChatRequest):
         dax, _ = _llm.nl_to_dax(
             question=req.question,
             schema=schema,
+            history=req.history,
             memory_examples=mem_examples or None,
         )
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"DAX yarada bilmədim: {e}")
 

@@ -49,6 +49,8 @@ export interface ChatResponse {
   model: string
   confidence: number
   timestamp: string
+  status?: string
+  suggestions?: string[]
 }
 
 export interface Message {

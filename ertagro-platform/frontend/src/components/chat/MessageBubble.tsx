@@ -152,6 +152,20 @@ export default function MessageBubble({ message, onSendMessage }: MessageBubbleP
           <div className="bg-white dark:bg-slate-800 rounded-2xl rounded-tl-sm shadow-card dark:shadow-none border border-slate-100 dark:border-slate-700 p-4">
             <p className="text-sm text-slate-700 dark:text-slate-200 leading-relaxed whitespace-pre-wrap">{message.content}</p>
 
+            {cr?.status === 'clarification_needed' && cr.suggestions && cr.suggestions.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-2 pt-2">
+                {cr.suggestions.map((suggestion, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => onSendMessage?.(suggestion)}
+                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-full border border-brand-200 dark:border-brand-800 text-xs font-semibold text-brand-700 dark:text-brand-400 bg-brand-50/50 dark:bg-brand-900/10 hover:bg-brand-100 dark:hover:bg-brand-900/30 transition-all cursor-pointer shadow-sm hover:shadow"
+                  >
+                    {suggestion}
+                  </button>
+                ))}
+              </div>
+            )}
+
             {cr?.chart && <ChatChart chart={cr.chart} />}
 
             {cr?.metrics && cr.metrics.length > 0 && (

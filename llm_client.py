@@ -180,6 +180,27 @@ Sual: "Kateqoriyalar üzrə satış"
 SQL: SELECT Kateqoriya, SUM(Mebleb) AS CemSatis FROM dbo.Satis GROUP BY Kateqoriya ORDER BY CemSatis DESC"""
 
 
+CLARIFY_SYSTEM = """Sən ErtAgro analitik köməkçisisən. İstifadəçinin sualındakı süzgəc obyektlərini (məhsul, şöbə, kateqoriya, anbar) analiz et və bazadakı real adlarla müqayisə et.
+Əgər sualda hərf səhvi varsa, yaxud məhsul adı ümumi yazılıbsa (məs: "banan" yazılıb, amma bazada "* Banan ERT 11", "* Banan ERT 12" var), istifadəçiyə dəqiqləşdirmə sualı və təkliflər hazırla.
+
+BAZADAKI REAL FİLTR DƏYƏRLƏRİ VƏ MƏHSULLAR:
+{filter_values}
+
+QAYDALAR:
+1. Sualdakı bütün süzgəclər və məhsul adları bazadakı dəyərlərlə tam üst-üstə düşürsə, və ya heç bir süzgəc yoxdursa, "clarification_needed": false qaytar.
+2. Əgər hər hansı bir süzgəcdə hərf səhvi varsa (məs: "semsir" -> "Semkir"), "clarification_needed": true qaytar və suggestions siyahısında düzgün adı yaz (məsələn: ["Şəmkir"]).
+3. Əgər məhsul adı (məsələn, "banan") bazada bir neçə məhsul adına qismən uyğun gəlirsə (məs: "* Banan ERT 11", "* Banan ERT 12"), "clarification_needed": true qaytar.
+   Suggestions-da hər bir uyğun məhsul adını və əlavə olaraq bütün bu məhsulların cəmini bildirmək üçün "Bütün Banan məhsulları" təklifini əlavə et.
+   Məsələn: ["Bütün Banan məhsulları", "* Banan ERT 11", "* Banan ERT 12"]
+4. Cavabı YALNIZ aşağıdakı JSON formatında qaytar (heç bir markdown, izahat yoxdur):
+{{
+  "clarification_needed": true/false,
+  "message": "İstifadəçiyə göstəriləcək nəzakətli Azərbaycan dilində izahat mətni",
+  "suggestions": ["Təklif 1", "Təklif 2", ...]
+}}
+"""
+
+
 class LLMClient:
     def __init__(self, endpoint, api_key, deployment, api_version="2024-10-21"):
         self.client = AzureOpenAI(
@@ -392,3 +413,17 @@ class LLMClient:
             return (chart if isinstance(chart, dict) else {"type": "none"}), cost
         except Exception:
             return {"type": "none"}, calculate_cost(0, 0, self.deployment)
+
+    def check_clarification(self, question: str, filter_values: dict) -> dict:
+        """Sualda hərf səhvi və ya çoxmənalılıq yoxlayır."""
+        fv_str = json.dumps(filter_values, ensure_ascii=False, indent=2)
+        system = CLARIFY_SYSTEM.format(filter_values=fv_str)
+        try:
+            resp, _ = self._chat(system, question, temperature=0.1, max_tokens=400)
+            if resp.startswith("```"):
+                lines = resp.split("\n")
+                resp = "\n".join(lines[1:-1] if lines[-1].startswith("```") else lines[1:])
+            res = json.loads(resp.strip())
+            return res
+        except Exception:
+            return {"clarification_needed": False}

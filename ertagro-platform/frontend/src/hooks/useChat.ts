@@ -19,12 +19,18 @@ export function useChat() {
       timestamp: new Date().toISOString(),
     }
 
+    const history = messages.map(msg => ({
+      role: msg.role,
+      content: msg.content,
+      dax: msg.chatResponse?.dax
+    }))
+
     setMessages(prev => [...prev, userMessage])
     setLoading(true)
     setError(null)
 
     try {
-      const response: ChatResponse = await api.chat({ question, filters })
+      const response: ChatResponse = await api.chat({ question, filters, history })
 
       const assistantMessage: Message = {
         id: `assistant-${Date.now()}`,

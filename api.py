@@ -489,6 +489,21 @@ async def chat(req: ChatRequest):
             if bypass_clarification:
                 break
                 
+    if bypass_clarification and req.history:
+        # Find the last actual user question in history
+        last_user_q = ""
+        for msg in reversed(req.history):
+            if msg.get("role") == "user":
+                last_user_q = msg.get("content", "")
+                break
+        if last_user_q:
+            try:
+                rewritten = _llm.rewrite_query(last_user_q, req.question)
+                print(f"Rewrote query: '{req.question}' -> '{rewritten}'")
+                req.question = rewritten
+            except Exception as e:
+                print(f"Query rewrite failed: {e}")
+
     clarify_res = {"clarification_needed": False}
     if not bypass_clarification:
         clarify_res = _llm.check_clarification(req.question, filter_data)

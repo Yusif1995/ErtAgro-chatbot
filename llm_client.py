@@ -180,6 +180,26 @@ Sual: "Kateqoriyalar üzrə satış"
 SQL: SELECT Kateqoriya, SUM(Mebleb) AS CemSatis FROM dbo.Satis GROUP BY Kateqoriya ORDER BY CemSatis DESC"""
 
 
+REWRITE_SYSTEM = """Sən söhbət tarixçəsinə əsasən istifadəçinin sualını yenidən yazan köməkçisən.
+İstifadəçinin ilkin sualını və onun sonradan etdiyi seçimi/dəqiqləşdirməni birləşdirərək tam, aydın və tək bir cümlədən ibarət sual formalaşdır.
+İlkin sualdakı digər bütün detalları (tarix, şöbə, miqdar və s.) mütləq saxla, yalnız dəqiqləşdirilən hissəni yenisi ilə əvəzlə.
+
+Nümunələr:
+İlkin sual: "iyun 11 Semkir şöbəsində neçə qutu banan satılıb"
+Seçim: "Bütün Banan məhsulları"
+Nəticə: "iyun 11 Semkir şöbəsində neçə qutu Bütün Banan məhsulları satılıb"
+
+İlkin sual: "iyun 11 Semkir şöbəsində neçə qutu banan satılıb"
+Seçim: "* Banan ERT 11"
+Nəticə: "iyun 11 Semkir şöbəsində neçə qutu * Banan ERT 11 satılıb"
+
+İlkin sual: "Şəmkirdə iyunun 11-də banan satılıb?"
+Seçim: "Şəmkir"
+Nəticə: "Şəmkir şöbəsində iyunun 11-də banan satılıb?"
+
+Cavabı YALNIZ yenidən yazılmış sual olaraq qaytar, heç bir izah və ya markdown yazma."""
+
+
 CLARIFY_SYSTEM = """Sən ErtAgro analitik köməkçisisən. İstifadəçinin sualındakı süzgəc obyektlərini (məhsul, şöbə, kateqoriya, anbar) analiz et və bazadakı real adlarla müqayisə et.
 Əgər sualda hərf səhvi varsa, yaxud məhsul adı ümumi yazılıbsa (məs: "banan" yazılıb, amma bazada "* Banan ERT 11", "* Banan ERT 12" var), istifadəçiyə dəqiqləşdirmə sualı və təkliflər hazırla.
 
@@ -295,7 +315,10 @@ class LLMClient:
             ),
         })
 
-        dax, cost = self._chat_with_history(DAX_SYSTEM, history_msgs, temperature=0.1, max_tokens=1000)
+        import datetime
+        current_year = datetime.datetime.now().year
+        dax_system_with_year = DAX_SYSTEM + f"\n\nCARI TARİX KONTEKSTİ:\n- Cari il: {current_year}\n- Sualda konkrekt il göstərilmədən gün və ay soruşulduqda (məsələn, 'iyun 11' və ya '11 iyun'), mütləq cari ili ({current_year}) istifadə et: DATE({current_year}, 6, 11)"
+        dax, cost = self._chat_with_history(dax_system_with_year, history_msgs, temperature=0.1, max_tokens=1000)
 
         if dax.startswith("```"):
             lines = dax.split("\n")
@@ -359,7 +382,10 @@ class LLMClient:
             "- TOPN() içindəki cədvəldə sütun reference yox, SUM() olan expression olmalıdır\n"
             "Yalnız düzəlmiş DAX qaytar, başqa heç nə."
         )
-        dax, cost = self._chat(DAX_SYSTEM, user, temperature=0.1, max_tokens=1000)
+        import datetime
+        current_year = datetime.datetime.now().year
+        dax_system_with_year = DAX_SYSTEM + f"\n\nCARI TARİX KONTEKSTİ:\n- Cari il: {current_year}\n- Sualda konkrekt il göstərilmədən gün və ay soruşulduqda (məsələn, 'iyun 11' və ya '11 iyun'), mütləq cari ili ({current_year}) istifadə et: DATE({current_year}, 6, 11)"
+        dax, cost = self._chat(dax_system_with_year, user, temperature=0.1, max_tokens=1000)
         if dax.startswith("```"):
             lines = dax.split("\n")
             dax = "\n".join(lines[1:-1] if lines[-1].startswith("```") else lines[1:])
@@ -427,3 +453,12 @@ class LLMClient:
             return res
         except Exception:
             return {"clarification_needed": False}
+
+    def rewrite_query(self, original_question: str, selection: str) -> str:
+        """İlkin sualı və seçimi birləşdirib tam sual formalaşdırır."""
+        user = f"İlkin sual: \"{original_question}\"\nSeçim: \"{selection}\""
+        try:
+            resp, _ = self._chat(REWRITE_SYSTEM, user, temperature=0.1, max_tokens=250)
+            return resp.strip()
+        except Exception:
+            return f"{original_question} ({selection})"

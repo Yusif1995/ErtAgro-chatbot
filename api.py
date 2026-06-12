@@ -11,9 +11,9 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import pandas as pd
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -145,6 +145,11 @@ class SQLChatRequest(BaseModel):
     server_name: str = "ErtAgro"
 
 
+class TTSRequest(BaseModel):
+    text: str
+    voice: str = "alloy"
+
+
 class EmailRequest(BaseModel):
     to_email: str
     kpi_label: str
@@ -223,6 +228,44 @@ async def test_connections():
         results["llm"] = {"ok": False, "msg": str(e)}
 
     return results
+
+
+@app.post("/api/tts")
+async def text_to_speech(body: TTSRequest):
+    import os
+    from openai import OpenAI
+    api_key = os.environ.get("OPENAI_API_KEY", "")
+    if not api_key:
+        raise HTTPException(status_code=500, detail="OPENAI_API_KEY tapılmadı")
+    try:
+        client = OpenAI(api_key=api_key)
+        audio = client.audio.speech.create(
+            model="gpt-4o-mini-tts",
+            voice=body.voice,
+            input=body.text[:4096],
+        )
+        return Response(content=audio.content, media_type="audio/mpeg")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"TTS xətası: {e}")
+
+
+@app.post("/api/stt")
+async def speech_to_text(audio: UploadFile = File(...)):
+    import os
+    from openai import OpenAI
+    api_key = os.environ.get("OPENAI_API_KEY", "")
+    if not api_key:
+        raise HTTPException(status_code=500, detail="OPENAI_API_KEY tapılmadı")
+    try:
+        client = OpenAI(api_key=api_key)
+        audio_bytes = await audio.read()
+        transcript = client.audio.transcriptions.create(
+            model="whisper-1",
+            file=(audio.filename or "audio.webm", audio_bytes, audio.content_type or "audio/webm"),
+        )
+        return {"text": transcript.text}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"STT xətası: {e}")
 
 
 @app.get("/api/datasets")

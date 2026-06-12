@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { Maximize2, Download, GitCompare, TrendingUp, CheckCircle, X, Bot } from 'lucide-react'
+import { useState, useRef } from 'react'
+import { Maximize2, Download, GitCompare, TrendingUp, CheckCircle, X, Bot, Volume2, VolumeX, Loader2 } from 'lucide-react'
 import clsx from 'clsx'
 import ChatChart from './ChatChart'
 import type { Message } from '@/types'
@@ -63,8 +63,36 @@ interface MessageBubbleProps {
 
 export default function MessageBubble({ message, onSendMessage }: MessageBubbleProps) {
   const [chartOpen, setChartOpen] = useState(false)
+  const [ttsLoading, setTtsLoading] = useState(false)
+  const [ttsPlaying, setTtsPlaying] = useState(false)
+  const audioRef = useRef<HTMLAudioElement | null>(null)
   const isAssistant = message.role === 'assistant'
   const cr = message.chatResponse
+
+  const handleTTS = async () => {
+    if (ttsPlaying) {
+      audioRef.current?.pause()
+      setTtsPlaying(false)
+      return
+    }
+    setTtsLoading(true)
+    try {
+      const r = await fetch('/api/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: message.content }),
+      })
+      if (!r.ok) return
+      const blob = await r.blob()
+      const url = URL.createObjectURL(blob)
+      const audio = new Audio(url)
+      audioRef.current = audio
+      audio.onended = () => { setTtsPlaying(false); URL.revokeObjectURL(url) }
+      await audio.play()
+      setTtsPlaying(true)
+    } catch {}
+    setTtsLoading(false)
+  }
 
   if (!isAssistant) {
     return (
@@ -106,6 +134,19 @@ export default function MessageBubble({ message, onSendMessage }: MessageBubbleP
           <div className="flex items-center gap-2 mb-2">
             <span className="text-xs font-semibold text-slate-700">Ert Agro AI Assistant</span>
             <span className="text-xs text-slate-400">{formatTimestamp(message.timestamp)}</span>
+            <button
+              onClick={handleTTS}
+              disabled={ttsLoading}
+              title={ttsPlaying ? 'Dayandır' : 'Səsləndir'}
+              className="w-6 h-6 rounded-md flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors disabled:opacity-40"
+            >
+              {ttsLoading
+                ? <Loader2 size={12} className="text-slate-400 animate-spin" />
+                : ttsPlaying
+                  ? <VolumeX size={12} className="text-brand-600" />
+                  : <Volume2 size={12} className="text-slate-400 hover:text-brand-600" />
+              }
+            </button>
           </div>
 
           <div className="bg-white dark:bg-slate-800 rounded-2xl rounded-tl-sm shadow-card dark:shadow-none border border-slate-100 dark:border-slate-700 p-4">

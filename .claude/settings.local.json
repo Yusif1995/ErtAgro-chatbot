@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install *)",
+      "Bash(ls /mnt/c/Users/HP/Desktop/)",
+      "Read(//mnt/c/Users/HP/**)",
+      "PowerShell(Head -30)",
+      "PowerShell(cmd /c \"cd C:\\\\Users\\\\HP\\\\Desktop\\\\Chatbot\\\\ertagro-platform\\\\frontend && npm run build 2>&1\")",
+      "PowerShell(cmd /c \"rmdir /s /q C:\\\\Users\\\\HP\\\\Desktop\\\\Chatbot\\\\frontend_dist && xcopy /e /i /q C:\\\\Users\\\\HP\\\\Desktop\\\\Chatbot\\\\ertagro-platform\\\\frontend\\\\out C:\\\\Users\\\\HP\\\\Desktop\\\\Chatbot\\\\frontend_dist\")",
+      "PowerShell(C:\\\\Users\\\\HP\\\\Desktop\\\\Chatbot\\\\venv\\\\Scripts\\\\pip.exe install pyodbc>=5.1.0 msal>=1.28.0)",
+      "Bash(python -c \"import shutil; shutil.copytree\\('ertagro-platform/frontend/out', 'static', dirs_exist_ok=True\\); print\\('Copied OK'\\)\")",
+      "Bash(az webapp *)"
+    ]
+  }
+}
